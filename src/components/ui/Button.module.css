@@ -1,0 +1,70 @@
+.btn {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  border-radius: var(--radius-pill);
+  border: 1px solid transparent;
+  font-weight: 600;
+  font-size: var(--text-sm);
+  padding: 0.55rem 1.1rem;
+  transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease, transform 0.1s ease;
+  white-space: nowrap;
+}
+
+.btn:active {
+  transform: translateY(1px);
+}
+
+.sm {
+  padding: 0.4rem 0.85rem;
+  font-size: var(--text-xs);
+}
+
+.icon {
+  padding: 0.5rem;
+}
+
+.primary {
+  background: var(--color-accent);
+  color: var(--color-accent-contrast);
+  box-shadow: var(--shadow-sm);
+}
+
+.primary:hover {
+  background: var(--color-accent-strong);
+}
+
+.secondary {
+  background: var(--color-surface);
+  color: var(--color-ink);
+  border-color: var(--color-border-strong);
+}
+
+.secondary:hover {
+  border-color: var(--color-accent);
+  color: var(--color-accent);
+}
+
+.ghost {
+  background: transparent;
+  color: var(--color-ink-muted);
+}
+
+.ghost:hover {
+  background: var(--color-surface-sunken);
+  color: var(--color-ink);
+}
+
+.danger {
+  background: transparent;
+  color: var(--color-critical);
+}
+
+.danger:hover {
+  background: var(--color-critical-soft);
+}
+
+.btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
