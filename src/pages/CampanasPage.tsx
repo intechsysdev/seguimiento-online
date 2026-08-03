@@ -32,7 +32,7 @@ export function CampanasPage() {
         title="Campañas"
         description="Cada campaña agrupa una o varias reglas de bonificación vigentes durante un período."
         actions={
-          <Button variant="primary" onClick={() => navigate("/campanas/nueva")}>
+          <Button variant="primary" onClick={() => navigate("/bonificados/campanas/nueva")}>
             <IconPlus width={16} height={16} />
             Nueva campaña
           </Button>
@@ -45,7 +45,7 @@ export function CampanasPage() {
           title="No hay campañas de bonificación"
           description="Crea tu primera campaña para comenzar a definir reglas de bonificación para la fuerza de ventas."
           action={
-            <Button variant="primary" onClick={() => navigate("/campanas/nueva")}>
+            <Button variant="primary" onClick={() => navigate("/bonificados/campanas/nueva")}>
               <IconPlus width={16} height={16} />
               Crear primera campaña
             </Button>
@@ -81,12 +81,12 @@ export function CampanasPage() {
                 </div>
 
                 <div className={styles.footer}>
-                  <Link to={`/campanas/${campana.id}`} className={styles.reglasLink}>
+                  <Link to={`/bonificados/campanas/${campana.id}`} className={styles.reglasLink}>
                     {totalReglas} regla{totalReglas === 1 ? "" : "s"}
                     <IconChevronRight width={15} height={15} />
                   </Link>
                   <div className={styles.rowActions}>
-                    <Button variant="ghost" size="icon" onClick={() => navigate(`/campanas/${campana.id}/editar`)} aria-label="Editar campaña">
+                    <Button variant="ghost" size="icon" onClick={() => navigate(`/bonificados/campanas/${campana.id}/editar`)} aria-label="Editar campaña">
                       <IconEdit width={16} height={16} />
                     </Button>
                     <Button

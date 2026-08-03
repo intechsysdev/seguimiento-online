@@ -43,7 +43,7 @@ export function ReglasPage() {
   const [toDelete, setToDelete] = useState<{ id: string; nombre: string } | null>(null);
 
   const campana = getCampana(campanaId!);
-  if (!campana) return <Navigate to="/" replace />;
+  if (!campana) return <Navigate to="/bonificados" replace />;
 
   const reglas = getReglasDeCampana(campana.id);
   const estado = ESTADO_INFO[estadoVigencia(campana.fechaInicio, campana.fechaFin, campana.activa)];
@@ -53,15 +53,15 @@ export function ReglasPage() {
       <PageHeader
         eyebrow="Bonificados"
         title={campana.nombre}
-        backTo="/"
+        backTo="/bonificados"
         backLabel="Campañas"
         actions={
           <>
-            <Button variant="secondary" onClick={() => navigate(`/campanas/${campana.id}/editar`)}>
+            <Button variant="secondary" onClick={() => navigate(`/bonificados/campanas/${campana.id}/editar`)}>
               <IconEdit width={16} height={16} />
               Editar campaña
             </Button>
-            <Button variant="primary" onClick={() => navigate(`/campanas/${campana.id}/reglas/nueva`)}>
+            <Button variant="primary" onClick={() => navigate(`/bonificados/campanas/${campana.id}/reglas/nueva`)}>
               <IconPlus width={16} height={16} />
               Nueva regla
             </Button>
@@ -89,7 +89,7 @@ export function ReglasPage() {
           title="Esta campaña aún no tiene reglas"
           description="Crea la primera regla para definir cómo se bonificarán los pedidos de esta campaña."
           action={
-            <Button variant="primary" onClick={() => navigate(`/campanas/${campana.id}/reglas/nueva`)}>
+            <Button variant="primary" onClick={() => navigate(`/bonificados/campanas/${campana.id}/reglas/nueva`)}>
               <IconPlus width={16} height={16} />
               Crear primera regla
             </Button>
@@ -147,7 +147,7 @@ export function ReglasPage() {
                     <Button
                       variant="ghost"
                       size="icon"
-                      onClick={() => navigate(`/campanas/${campana.id}/reglas/${regla.id}`)}
+                      onClick={() => navigate(`/bonificados/campanas/${campana.id}/reglas/${regla.id}`)}
                       aria-label="Editar regla"
                     >
                       <IconEdit width={16} height={16} />

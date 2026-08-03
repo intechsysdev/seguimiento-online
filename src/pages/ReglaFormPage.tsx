@@ -97,8 +97,8 @@ export function ReglaFormPage() {
     limiteMensualCantidad: existing?.limiteMensualCantidad,
   }));
 
-  if (!campana) return <Navigate to="/" replace />;
-  if (isEdit && !existing) return <Navigate to={`/campanas/${campanaId}`} replace />;
+  if (!campana) return <Navigate to="/bonificados" replace />;
+  if (isEdit && !existing) return <Navigate to={`/bonificados/campanas/${campanaId}`} replace />;
 
   function set<K extends keyof FormState>(key: K, value: FormState[K]) {
     setForm((f) => ({ ...f, [key]: value }));
@@ -172,7 +172,7 @@ export function ReglaFormPage() {
     } else {
       addRegla(payload);
     }
-    navigate(`/campanas/${campana!.id}`);
+    navigate(`/bonificados/campanas/${campana!.id}`);
   }
 
   return (
@@ -180,7 +180,7 @@ export function ReglaFormPage() {
       <PageHeader
         eyebrow={campana.nombre}
         title={isEdit ? "Editar regla" : "Nueva regla de bonificación"}
-        backTo={`/campanas/${campana.id}`}
+        backTo={`/bonificados/campanas/${campana.id}`}
         backLabel="Reglas"
       />
 
@@ -560,7 +560,7 @@ export function ReglaFormPage() {
             <Button type="submit" variant="primary">
               {isEdit ? "Guardar cambios" : "Crear regla"}
             </Button>
-            <Button type="button" variant="ghost" onClick={() => navigate(`/campanas/${campana.id}`)}>
+            <Button type="button" variant="ghost" onClick={() => navigate(`/bonificados/campanas/${campana.id}`)}>
               Cancelar
             </Button>
           </div>

@@ -41,10 +41,10 @@ export function CampanaFormPage() {
 
     if (existing) {
       updateCampana({ ...existing, nombre, descripcion, fechaInicio, fechaFin, activa });
-      navigate("/");
+      navigate("/bonificados");
     } else {
       const nueva = addCampana({ nombre, descripcion, fechaInicio, fechaFin, activa });
-      navigate(`/campanas/${nueva.id}`);
+      navigate(`/bonificados/campanas/${nueva.id}`);
     }
   }
 
@@ -53,7 +53,7 @@ export function CampanaFormPage() {
       <PageHeader
         eyebrow="Bonificados"
         title={isEdit ? "Editar campaña" : "Nueva campaña"}
-        backTo="/"
+        backTo="/bonificados"
         backLabel="Campañas"
       />
 
@@ -114,7 +114,7 @@ export function CampanaFormPage() {
           <Button type="submit" variant="primary">
             {isEdit ? "Guardar cambios" : "Crear campaña"}
           </Button>
-          <Button type="button" variant="ghost" onClick={() => navigate("/")}>
+          <Button type="button" variant="ghost" onClick={() => navigate("/bonificados")}>
             Cancelar
           </Button>
         </div>

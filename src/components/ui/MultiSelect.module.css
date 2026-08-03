@@ -1,0 +1,248 @@
+.wrap {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  /* La rejilla de .filtros define el ancho; aca solo se evita el desbordamiento. */
+  width: 100%;
+  min-width: 0;
+}
+
+.label {
+  font-size: var(--text-sm);
+  font-weight: 600;
+  color: var(--color-ink);
+  line-height: 1.2;
+}
+
+/* ---- Disparador ---- */
+
+.trigger {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  width: 100%;
+  border: 1px solid var(--color-border-strong);
+  background: var(--color-surface);
+  border-radius: var(--radius-sm);
+  padding: 0.5rem 0.7rem;
+  font-size: var(--text-sm);
+  font-family: inherit;
+  text-align: left;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.trigger:hover:not(:disabled) {
+  border-color: var(--color-accent);
+}
+
+.trigger:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.triggerAbierto,
+.trigger:focus-visible {
+  border-color: var(--color-accent);
+  box-shadow: 0 0 0 3px var(--color-accent-soft);
+  outline: none;
+}
+
+.resumen,
+.resumenActivo {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.resumen {
+  color: var(--color-ink-faint);
+}
+
+.resumenActivo {
+  color: var(--color-accent);
+  font-weight: 600;
+}
+
+.flecha {
+  display: inline-flex;
+  color: var(--color-ink-faint);
+  flex-shrink: 0;
+  transform: rotate(90deg);
+}
+
+.flecha svg {
+  width: 14px;
+  height: 14px;
+}
+
+.triggerAbierto .flecha {
+  transform: rotate(-90deg);
+}
+
+.limpiar {
+  position: absolute;
+  top: 0;
+  right: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  background: none;
+  border: none;
+  padding: 0;
+  font-size: var(--text-xs);
+  color: var(--color-ink-muted);
+  line-height: 1.2;
+}
+
+.limpiar:hover {
+  color: var(--color-critical);
+}
+
+.limpiar svg {
+  width: 11px;
+  height: 11px;
+}
+
+/* ---- Panel ---- */
+
+.panel {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  right: 0;
+  z-index: 40;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-lg);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  min-width: 15rem;
+}
+
+.buscador {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-3);
+  border-bottom: 1px solid var(--color-border);
+  color: var(--color-ink-faint);
+}
+
+.buscador svg {
+  width: 14px;
+  height: 14px;
+  flex-shrink: 0;
+}
+
+.buscador input {
+  border: none;
+  background: none;
+  outline: none;
+  width: 100%;
+  font-size: var(--text-sm);
+  font-family: inherit;
+  color: var(--color-ink);
+}
+
+.buscador input::-webkit-search-cancel-button {
+  cursor: pointer;
+}
+
+.opciones {
+  max-height: 15rem;
+  overflow-y: auto;
+  padding: var(--space-1);
+}
+
+.opcion {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  width: 100%;
+  border: none;
+  background: none;
+  padding: 0.4rem 0.5rem;
+  border-radius: var(--radius-sm);
+  font-size: var(--text-sm);
+  font-family: inherit;
+  color: var(--color-ink);
+  text-align: left;
+}
+
+.opcion:hover {
+  background: var(--color-surface-sunken);
+}
+
+.opcionActiva {
+  color: var(--color-accent);
+  font-weight: 600;
+}
+
+.casilla {
+  width: 15px;
+  height: 15px;
+  flex-shrink: 0;
+  border: 1px solid var(--color-border-strong);
+  border-radius: 4px;
+  display: grid;
+  place-items: center;
+  background: var(--color-surface);
+}
+
+.casillaActiva {
+  background: var(--color-accent);
+  border-color: var(--color-accent);
+  color: var(--color-accent-contrast);
+}
+
+.casilla svg {
+  width: 11px;
+  height: 11px;
+  stroke-width: 3;
+}
+
+.texto {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.vacio {
+  padding: var(--space-3);
+  font-size: var(--text-xs);
+  color: var(--color-ink-muted);
+  text-align: center;
+  line-height: 1.4;
+}
+
+.pie {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-3);
+  border-top: 1px solid var(--color-border);
+  background: var(--color-surface-sunken);
+}
+
+.pie button {
+  background: none;
+  border: none;
+  padding: 0;
+  font-size: var(--text-xs);
+  font-family: inherit;
+  color: var(--color-accent);
+}
+
+.pie button:hover {
+  text-decoration: underline;
+}
+
+.contador {
+  font-size: var(--text-xs);
+  color: var(--color-ink-faint);
+}
