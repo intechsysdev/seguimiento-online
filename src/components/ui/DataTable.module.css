@@ -1,0 +1,148 @@
+.wrap {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.barra {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+}
+
+.buscador {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  border: 1px solid var(--color-border-strong);
+  background: var(--color-surface);
+  border-radius: var(--radius-sm);
+  padding: 0 0.7rem;
+  color: var(--color-ink-faint);
+  min-width: 16rem;
+  flex: 1;
+  max-width: 24rem;
+}
+
+.buscador:focus-within {
+  border-color: var(--color-accent);
+  box-shadow: 0 0 0 3px var(--color-accent-soft);
+}
+
+.buscador input {
+  border: none;
+  background: none;
+  outline: none;
+  padding: 0.5rem 0;
+  font-size: var(--text-sm);
+  color: var(--color-ink);
+  width: 100%;
+}
+
+.acciones {
+  margin-left: auto;
+  display: flex;
+  gap: var(--space-2);
+}
+
+.scroll {
+  overflow-x: auto;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+}
+
+.tabla {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--text-sm);
+}
+
+.tabla th {
+  text-align: left;
+  padding: 0.7rem var(--space-4);
+  background: var(--color-surface-sunken);
+  border-bottom: 1px solid var(--color-border);
+  color: var(--color-ink-muted);
+  font-size: var(--text-xs);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.thBtn {
+  background: none;
+  border: none;
+  padding: 0;
+  font: inherit;
+  color: inherit;
+  text-transform: inherit;
+  letter-spacing: inherit;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.thBtn:hover {
+  color: var(--color-accent);
+}
+
+.flecha {
+  font-size: 0.6em;
+}
+
+.tabla td {
+  padding: 0.65rem var(--space-4);
+  border-bottom: 1px solid var(--color-border);
+  color: var(--color-ink);
+  vertical-align: middle;
+}
+
+.tabla tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.tabla tbody tr:hover td {
+  background: var(--color-surface-sunken);
+}
+
+.vacio {
+  padding: var(--space-6);
+  text-align: center;
+  color: var(--color-ink-muted);
+  font-size: var(--text-sm);
+  border: 1px dashed var(--color-border-strong);
+  border-radius: var(--radius-md);
+}
+
+.paginador {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  font-size: var(--text-sm);
+  color: var(--color-ink-muted);
+  flex-wrap: wrap;
+}
+
+.paginador button {
+  border: 1px solid var(--color-border-strong);
+  background: var(--color-surface);
+  color: var(--color-ink);
+  border-radius: var(--radius-sm);
+  padding: 0.35rem 0.8rem;
+  font-size: var(--text-sm);
+}
+
+.paginador button:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.paginador button:not(:disabled):hover {
+  border-color: var(--color-accent);
+  color: var(--color-accent);
+}
