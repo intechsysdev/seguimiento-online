@@ -222,6 +222,8 @@ export interface MobVisitaDto {
   rvis_cmpy: string;
   rvis_consec: string;
   rvis_codusu: string;
+  /** Codigo del funcionario que registro la visita (el MVC lo muestra como "Usuario"). */
+  rvis_enter: string;
   rvis_codmedvis: string;
   rmedio_desmedvis: string;
   movdesc: string;

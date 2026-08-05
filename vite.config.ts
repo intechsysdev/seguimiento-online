@@ -1,5 +1,9 @@
+import { readFileSync } from 'node:fs'
 import { defineConfig, loadEnv, type Plugin } from 'vite'
 import react from '@vitejs/plugin-react'
+
+/** Unica fuente de la version: package.json. Se expone como __APP_VERSION__. */
+const { version } = JSON.parse(readFileSync(new URL('./package.json', import.meta.url), 'utf8'))
 
 /**
  * Proxy dinamico para los API por compania.
@@ -77,6 +81,7 @@ export default defineConfig(({ mode }) => {
   const seguridadTarget = env.SEGURIDAD_PROXY_TARGET ?? 'https://eva.recamier.com:8471'
 
   return {
+    define: { __APP_VERSION__: JSON.stringify(version) },
     plugins: [react(), tenantProxy()],
     server: {
       proxy: {

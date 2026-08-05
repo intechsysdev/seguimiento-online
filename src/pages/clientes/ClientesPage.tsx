@@ -78,11 +78,11 @@ export function ClientesPage() {
       render: (c) => (
         <div>
           <strong>{c.rctt_nomcli || c.rctt_razsoc}</strong>
-          {c.rctt_addr ? <div className={formularios.url}>{c.rctt_addr}</div> : null}
+          {c.rctt_addr ? <div className={formularios.sub}>{c.rctt_addr}</div> : null}
         </div>
       ),
     },
-    { titulo: "Vendedor", valor: (c) => c.rctt_codusu, render: (c) => c.rctt_codusu },
+    { titulo: "Funcionario", valor: (c) => c.rctt_codusu, render: (c) => c.rctt_codusu },
     { titulo: "Canal", valor: (c) => c.rctt_nomcan ?? "", render: (c) => c.rctt_nomcan },
     {
       titulo: "Teléfono",
@@ -113,7 +113,7 @@ export function ClientesPage() {
       <PageHeader
         title="Clientes"
         eyebrow={tenant?.NameCompanyTenant}
-        description="Clientes de los vendedores asignados a tu usuario."
+        description="Clientes de los funcionarios asignados a tu usuario."
         actions={<Badge tone="accent">{clientes.datos?.length ?? 0} clientes</Badge>}
       />
 
@@ -145,7 +145,7 @@ export function ClientesPage() {
         />
 
         <MultiSelect
-          etiqueta="Vendedores"
+          etiqueta="Funcionarios"
           opciones={usuarios.map((u) => ({
             valor: u.KEY_rusu_codusu,
             etiqueta: `${u.KEY_rusu_codusu} — ${u.rusu_nombre}`,
@@ -188,6 +188,7 @@ export function ClientesPage() {
         cargando={clientes.cargando || cargandoUsuarios}
         vacio="No hay clientes para los filtros seleccionados."
         porPagina={25}
+        exportar="clientes"
       />
     </>
   );

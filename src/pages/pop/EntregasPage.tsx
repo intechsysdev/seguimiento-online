@@ -122,7 +122,7 @@ export function EntregasPage() {
       ancho: "9rem",
     },
     {
-      titulo: "Vendedor",
+      titulo: "Funcionario",
       valor: (e) => e.rusu_nombre,
       render: (e) => (
         <div>
@@ -137,7 +137,7 @@ export function EntregasPage() {
       render: (e) => (
         <div>
           {e.rctt_nomcli || e.rctt_razsoc}
-          {e.rctt_addr ? <div className={formularios.url}>{e.rctt_addr}</div> : null}
+          {e.rctt_addr ? <div className={formularios.sub}>{e.rctt_addr}</div> : null}
         </div>
       ),
     },
@@ -169,7 +169,7 @@ export function EntregasPage() {
       <PageHeader
         eyebrow="Material POP"
         title="Entregas"
-        description="Entregas de material registradas por los vendedores."
+        description="Entregas de material registradas por los funcionarios."
         actions={<Badge tone="accent">{entregas.datos?.length ?? 0} entregas</Badge>}
       />
 
@@ -201,7 +201,7 @@ export function EntregasPage() {
         </Field>
 
         <MultiSelect
-          etiqueta="Vendedores"
+          etiqueta="Funcionarios"
           opciones={usuarios.map((u) => ({
             valor: u.KEY_rusu_codusu,
             etiqueta: `${u.KEY_rusu_codusu} — ${u.rusu_nombre}`,
@@ -285,6 +285,7 @@ export function EntregasPage() {
         cargando={entregas.cargando || cargandoUsuarios}
         vacio="No hay entregas para los filtros seleccionados."
         porPagina={25}
+        exportar="entregas-pop"
       />
 
       <Modal

@@ -3,6 +3,7 @@ import { PageHeader } from "../../components/layout/PageHeader";
 import { Button } from "../../components/ui/Button";
 import { Badge } from "../../components/ui/Badge";
 import { DataTable, type Columna } from "../../components/ui/DataTable";
+import { MultiSelect } from "../../components/ui/MultiSelect";
 import { Field } from "../../components/ui/Field";
 import { useApi } from "../../hooks/useApi";
 import { audithService } from "../../services/audithService";
@@ -81,31 +82,40 @@ export function AuditoriaPage() {
           />
         </Field>
 
-        <Field label="Usuarios" htmlFor="usuarios" hint="Sin selección se consultan todos.">
-          <select
-            id="usuarios"
-            multiple
-            size={4}
-            className={inputs.select}
-            value={seleccionados}
-            onChange={(evento) =>
-              setSeleccionados(Array.from(evento.target.selectedOptions, (o) => o.value))
-            }
-          >
-            {usuarios.datos?.map((u) => (
-              <option key={u.Id} value={u.Email}>
-                {u.FirstName} {u.LastName}
-              </option>
-            ))}
-          </select>
-        </Field>
+        {/* Buscador incluido: el listado de usuarios puede ser largo y con el
+            select nativo habia que recorrerlo a mano con Ctrl+clic. */}
+        <MultiSelect
+          etiqueta="Usuarios"
+          opciones={(usuarios.datos ?? []).map((u) => ({
+            valor: u.Email,
+            etiqueta: `${u.FirstName} ${u.LastName} — ${u.Email}`,
+          }))}
+          seleccion={seleccionados}
+          onChange={setSeleccionados}
+          vacioSignifica="Todos"
+          cargando={usuarios.cargando}
+        />
 
-        <Button
-          variant="primary"
-          onClick={() => setFiltro({ fecIni, fecFin, usuarios: seleccionados })}
-        >
-          Buscar
-        </Button>
+        <div className={formularios.accionesFila}>
+          <Button
+            variant="ghost"
+            onClick={() => {
+              const hoy = hoyISO();
+              setFecIni(hoy);
+              setFecFin(hoy);
+              setSeleccionados([]);
+              setFiltro({ fecIni: hoy, fecFin: hoy, usuarios: [] });
+            }}
+          >
+            Limpiar
+          </Button>
+          <Button
+            variant="primary"
+            onClick={() => setFiltro({ fecIni, fecFin, usuarios: seleccionados })}
+          >
+            Buscar
+          </Button>
+        </div>
       </div>
 
       <DataTable
@@ -116,6 +126,7 @@ export function AuditoriaPage() {
         error={registros.error}
         vacio="No hay registros en el rango seleccionado."
         porPagina={25}
+        exportar="auditoria"
       />
     </>
   );

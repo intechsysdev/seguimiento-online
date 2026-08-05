@@ -6,8 +6,10 @@ import { Badge } from "../../components/ui/Badge";
 import { Alert } from "../../components/ui/Alert";
 import { Field } from "../../components/ui/Field";
 import { Spinner } from "../../components/ui/Spinner";
+import { Modal } from "../../components/ui/Modal";
 import { DataTable, type Columna } from "../../components/ui/DataTable";
 import { MultiSelect } from "../../components/ui/MultiSelect";
+import { IconMap } from "../../components/icons";
 import { Mapa, type MarcadorMapa, type Trazado } from "../../components/mapa/Mapa";
 import { useApi } from "../../hooks/useApi";
 import { useGoogleMapsKey, useMobiControl } from "../../hooks/useAppConfig";
@@ -19,11 +21,12 @@ import { aFormatoApi, hoyISO } from "../../utils/dates";
 import type { FiltersDetalle, MobVisitaDto, MobVisitaGrupoDto } from "../../types/eva";
 import inputs from "../../components/ui/inputs.module.css";
 import formularios from "../seguridad/Formularios.module.css";
+import estilos from "./Visitas.module.css";
 
 interface Filtro {
   fecIni: string;
   fecFin: string;
-  codUsu: string;
+  funcionarios: string[];
   codCust: string;
   regiones: string[];
   territorios: string[];
@@ -39,11 +42,11 @@ interface Filtro {
   horaHasta: string;
 }
 
-function filtroInicial(codUsu = "", fecIni = hoyISO(), fecFin = hoyISO()): Filtro {
+function filtroInicial(funcionarios: string[] = [], fecIni = hoyISO(), fecFin = hoyISO()): Filtro {
   return {
     fecIni,
     fecFin,
-    codUsu,
+    funcionarios,
     codCust: "",
     regiones: [],
     territorios: [],
@@ -89,13 +92,17 @@ export function VisitasDetalleBase({ modo, titulo, descripcion }: Props) {
   const google = useGoogleMapsKey();
 
   const inicial = filtroInicial(
-    params.get("codUsu") ?? "",
+    params.get("codUsu") ? [params.get("codUsu")!] : [],
     params.get("fecIni") ?? hoyISO(),
     params.get("fecFin") ?? hoyISO(),
   );
 
   const [borrador, setBorrador] = useState<Filtro>(inicial);
   const [filtro, setFiltro] = useState<Filtro>(inicial);
+
+  /** Capas visibles del mapa (checkDispositivo/checkVisita/checkCliente del MVC). */
+  const [capas, setCapas] = useState({ dispositivo: true, visita: true, cliente: true });
+  const [visitaEnMapa, setVisitaEnMapa] = useState<Fila | null>(null);
 
   const regiones = useApi(
     () => (tenant ? catalogosEvaService.regiones(tenant) : Promise.resolve([])),
@@ -135,7 +142,7 @@ export function VisitasDetalleBase({ modo, titulo, descripcion }: Props) {
 
     const filtroApi: FiltersDetalle = {
       // Sin vendedor elegido, el controller usaba todos los asignados.
-      codUsu: filtro.codUsu ? [filtro.codUsu] : codigosAsignados,
+      codUsu: filtro.funcionarios.length ? filtro.funcionarios : codigosAsignados,
       codCust: filtro.codCust,
       fecIni: aFormatoApi(filtro.fecIni),
       fecFin: aFormatoApi(filtro.fecFin),
@@ -162,10 +169,11 @@ export function VisitasDetalleBase({ modo, titulo, descripcion }: Props) {
 
   /** Recorrido GPS: solo tiene sentido con un vendedor concreto. */
   const recorrido = useApi(async () => {
-    if (!filtro.codUsu || !mobi.config || !mobi.token) return [];
+    // La traza GPS es de un dispositivo: solo aplica con un funcionario.
+    if (filtro.funcionarios.length !== 1 || !mobi.config || !mobi.token) return [];
 
     const dispositivos = await mobicontrolService
-      .getDevices(mobi.config, filtro.codUsu, mobi.token)
+      .getDevices(mobi.config, filtro.funcionarios[0], mobi.token)
       .catch(() => []);
     const dispositivo = dispositivos?.[0];
     if (!dispositivo) return [];
@@ -178,43 +186,104 @@ export function VisitasDetalleBase({ modo, titulo, descripcion }: Props) {
       .slice()
       .sort((a, b) => a.Timestamp.localeCompare(b.Timestamp))
       .map((p) => ({ lat: Number(p.Latitude), lng: Number(p.Longitude) }));
-  }, [filtro.codUsu, filtro.fecIni, filtro.fecFin, mobi.config?.IDApplicationConfig, mobi.token]);
+  }, [filtro.funcionarios, filtro.fecIni, filtro.fecFin, mobi.config?.IDApplicationConfig, mobi.token]);
 
-  const marcadores: MarcadorMapa[] = useMemo(
-    () =>
-      (visitas.datos ?? [])
-        .filter((v) => Number(v.rvis_latitud) && Number(v.rvis_longitud))
-        .map((v, indice) => ({
-          id: `${v.rctt_cust}-${v.rctt_succli}-${indice}`,
-          lat: Number(v.rvis_latitud),
-          lng: Number(v.rvis_longitud),
-          titulo: v.rctt_nomcli || v.rctt_razsoc,
-          etiqueta: String(indice + 1),
-          color: "azul",
-          detalle: `<strong>${v.rctt_nomcli || v.rctt_razsoc}</strong><br/>${v.rctt_addr ?? ""}<br/>${
-            v.rvis_horinivis
-          } - ${v.rvis_horfinvis} (${v.tiempoVis ?? ""})`,
-        })),
-    [visitas.datos],
-  );
+  function detalleHtml(v: Fila) {
+    return (
+      `<strong>${v.rctt_nomcli || v.rctt_razsoc}</strong><br/>` +
+      `${v.rctt_cust ?? ""} · ${v.rctt_addr ?? ""}<br/>` +
+      `${v.rusu_nombre ?? ""} (${v.rvis_enter || v.rvis_codusu || ""})<br/>` +
+      `${v.rvis_fecvis ?? ""} ${v.rvis_horinivis ?? ""} - ${v.rvis_horfinvis ?? ""} (${v.tiempoVis ?? ""})`
+    );
+  }
 
   /**
-   * Dos rutas: el orden de las visitas (rojo, como el MVC) y el recorrido real
-   * del dispositivo (azul). Ambas se dibujan siguiendo las calles.
+   * Capas del mapa, con los mismos colores del MVC: Visita en rojo, Cliente en
+   * verde y Dispositivo en azul (los checkDispositivo/checkVisita/checkCliente
+   * de Summary.cshtml).
    */
+  const marcadores: MarcadorMapa[] = useMemo(() => {
+    const lista: MarcadorMapa[] = [];
+    const datos = visitas.datos ?? [];
+
+    if (capas.visita) {
+      datos
+        .filter((v) => Number(v.rvis_latitud) && Number(v.rvis_longitud))
+        .forEach((v, indice) =>
+          lista.push({
+            id: `vis-${v.rctt_cust}-${v.rctt_succli}-${indice}`,
+            lat: Number(v.rvis_latitud),
+            lng: Number(v.rvis_longitud),
+            titulo: `Visita · ${v.rctt_nomcli || v.rctt_razsoc}`,
+            etiqueta: String(indice + 1),
+            color: "rojo",
+            detalle: detalleHtml(v),
+          }),
+        );
+    }
+
+    if (capas.cliente) {
+      datos
+        .filter((v) => Number(v.rctt_latitud) && Number(v.rctt_longitud))
+        .forEach((v, indice) =>
+          lista.push({
+            id: `cli-${v.rctt_cust}-${v.rctt_succli}-${indice}`,
+            lat: Number(v.rctt_latitud),
+            lng: Number(v.rctt_longitud),
+            titulo: `Cliente · ${v.rctt_nomcli || v.rctt_razsoc}`,
+            color: "verde",
+            detalle: detalleHtml(v),
+          }),
+        );
+    }
+
+    return lista;
+  }, [visitas.datos, capas]);
+
   const trazados: Trazado[] = useMemo(() => {
     const lista: Trazado[] = [];
 
-    const puntosVisitas = (visitas.datos ?? [])
-      .filter((v) => Number(v.rvis_latitud) && Number(v.rvis_longitud))
-      .map((v) => ({ lat: Number(v.rvis_latitud), lng: Number(v.rvis_longitud) }));
-    if (puntosVisitas.length >= 2) lista.push({ puntos: puntosVisitas, color: "red", grosor: 4 });
+    if (capas.visita) {
+      const puntos = (visitas.datos ?? [])
+        .filter((v) => Number(v.rvis_latitud) && Number(v.rvis_longitud))
+        .map((v) => ({ lat: Number(v.rvis_latitud), lng: Number(v.rvis_longitud) }));
+      if (puntos.length >= 2) lista.push({ puntos, color: "red", grosor: 4 });
+    }
 
-    const gps = recorrido.datos ?? [];
-    if (gps.length >= 2) lista.push({ puntos: gps, color: "#1a73e8", grosor: 4 });
+    if (capas.dispositivo) {
+      const gps = recorrido.datos ?? [];
+      if (gps.length >= 2) lista.push({ puntos: gps, color: "#1a73e8", grosor: 4 });
+    }
 
     return lista;
-  }, [visitas.datos, recorrido.datos]);
+  }, [visitas.datos, recorrido.datos, capas]);
+
+  /** Mapa de una sola visita, para el boton "Ver" de cada fila. */
+  const marcadoresFila: MarcadorMapa[] = useMemo(() => {
+    if (!visitaEnMapa) return [];
+    const lista: MarcadorMapa[] = [];
+    if (Number(visitaEnMapa.rctt_latitud) && Number(visitaEnMapa.rctt_longitud)) {
+      lista.push({
+        id: "cliente",
+        lat: Number(visitaEnMapa.rctt_latitud),
+        lng: Number(visitaEnMapa.rctt_longitud),
+        titulo: "Ubicación del cliente",
+        color: "verde",
+        detalle: `<strong>Cliente</strong><br/>${visitaEnMapa.rctt_addr ?? ""}`,
+      });
+    }
+    if (Number(visitaEnMapa.rvis_latitud) && Number(visitaEnMapa.rvis_longitud)) {
+      lista.push({
+        id: "visita",
+        lat: Number(visitaEnMapa.rvis_latitud),
+        lng: Number(visitaEnMapa.rvis_longitud),
+        titulo: "Ubicación de la visita",
+        color: "rojo",
+        detalle: detalleHtml(visitaEnMapa),
+      });
+    }
+    return lista;
+  }, [visitaEnMapa]);
 
   const columnas: Columna<Fila>[] = [
     {
@@ -223,14 +292,27 @@ export function VisitasDetalleBase({ modo, titulo, descripcion }: Props) {
       render: (v) => v.rvis_fecvis,
       ancho: "8rem",
     },
+    // El MVC mostraba rvis_enter como primera columna ("Usuario").
     {
-      titulo: "Vendedor",
+      titulo: "Cód. funcionario",
+      ancho: "7rem",
+      valor: (v) => v.rvis_enter ?? v.rvis_codusu ?? "",
+      render: (v) => <code>{v.rvis_enter || v.rvis_codusu}</code>,
+    },
+    {
+      titulo: "Funcionario",
       valor: (v) => v.rusu_nombre ?? "",
+      render: (v) => <strong>{v.rusu_nombre}</strong>,
+    },
+    {
+      titulo: "Cód. cliente",
+      ancho: "7rem",
+      valor: (v) => v.rctt_cust ?? "",
       render: (v) => (
-        <div>
-          <strong>{v.rusu_nombre}</strong>
-          <div className={formularios.url}>{v.rvis_codusu}</div>
-        </div>
+        <code>
+          {v.rctt_cust}
+          {v.rctt_succli && v.rctt_succli !== "0" ? `-${v.rctt_succli}` : ""}
+        </code>
       ),
     },
     {
@@ -239,9 +321,15 @@ export function VisitasDetalleBase({ modo, titulo, descripcion }: Props) {
       render: (v) => (
         <div>
           {v.rctt_nomcli || v.rctt_razsoc}
-          {v.rctt_addr ? <div className={formularios.url}>{v.rctt_addr}</div> : null}
+          {v.rctt_addr ? <div className={formularios.sub}>{v.rctt_addr}</div> : null}
         </div>
       ),
+    },
+    {
+      titulo: "Ruta / Sec.",
+      ancho: "7rem",
+      valor: (v) => `${v.rctt_ruta ?? ""}-${v.rctt_sec ?? ""}`,
+      render: (v) => `${v.rctt_ruta ?? ""} / ${v.rctt_sec ?? ""}`,
     },
     { titulo: "Ciudad", valor: (v) => v.dis_desc ?? "", render: (v) => v.dis_desc },
     { titulo: "Región", valor: (v) => v.reg_desc ?? "", render: (v) => v.reg_desc },
@@ -269,6 +357,21 @@ export function VisitasDetalleBase({ modo, titulo, descripcion }: Props) {
           render: (v) => (v as MobVisitaDto).docvis_desc || "—",
         },
   ];
+
+  // Boton por fila: abre el mapa centrado en esa visita, como ConsultarDetalle().
+  columnas.push({
+    titulo: "Ubicación",
+    ancho: "7rem",
+    alineacion: "centro",
+    render: (v) =>
+      Number(v.rvis_latitud) || Number(v.rctt_latitud) ? (
+        <Button variant="ghost" size="sm" onClick={() => setVisitaEnMapa(v)}>
+          <IconMap /> Ver
+        </Button>
+      ) : (
+        "—"
+      ),
+  });
 
   if (modo === "detallada") {
     columnas.push(
@@ -299,7 +402,7 @@ export function VisitasDetalleBase({ modo, titulo, descripcion }: Props) {
         actions={<Badge tone="accent">{visitas.datos?.length ?? 0} registros</Badge>}
       />
 
-      {mobi.error && filtro.codUsu ? (
+      {mobi.error && filtro.funcionarios.length === 1 ? (
         <Alert tone="warning">
           No se pudo conectar con MobiControl: el mapa no mostrará el recorrido GPS.
         </Alert>
@@ -328,21 +431,17 @@ export function VisitasDetalleBase({ modo, titulo, descripcion }: Props) {
           />
         </Field>
 
-        <Field label="Vendedor" htmlFor="codUsu" hint="Requerido para ver el recorrido GPS.">
-          <select
-            id="codUsu"
-            className={inputs.select}
-            value={borrador.codUsu}
-            onChange={(e) => setBorrador((p) => ({ ...p, codUsu: e.target.value }))}
-          >
-            <option value="">Todos los asignados</option>
-            {usuarios.map((u) => (
-              <option key={u.KEY_rusu_codusu} value={u.KEY_rusu_codusu}>
-                {u.KEY_rusu_codusu} — {u.rusu_nombre}
-              </option>
-            ))}
-          </select>
-        </Field>
+        <MultiSelect
+          etiqueta="Funcionarios"
+          opciones={usuarios.map((u) => ({
+            valor: u.KEY_rusu_codusu,
+            etiqueta: `${u.KEY_rusu_codusu} — ${u.rusu_nombre}`,
+          }))}
+          seleccion={borrador.funcionarios}
+          onChange={(funcionarios) => setBorrador((p) => ({ ...p, funcionarios }))}
+          vacioSignifica="Asignados"
+          cargando={cargandoUsuarios}
+        />
 
         <Field label="Cliente" htmlFor="codCust" optional>
           <input
@@ -475,13 +574,49 @@ export function VisitasDetalleBase({ modo, titulo, descripcion }: Props) {
         <Spinner mensaje="Consultando visitas…" />
       ) : (
         <>
-          {google.apiKey && marcadores.length ? (
-            <Mapa
-              apiKey={google.apiKey}
-              marcadores={marcadores}
-              trazados={trazados}
-              altura="28rem"
-            />
+          {google.apiKey && (marcadores.length > 0 || trazados.length > 0) ? (
+            <>
+              {/* Capas del mapa: los tres checks del modal del MVC. */}
+              <div className={estilos.capas}>
+                <span className={estilos.capasTitulo}>Mostrar en el mapa</span>
+                <label className={estilos.capa}>
+                  <input
+                    type="checkbox"
+                    checked={capas.dispositivo}
+                    onChange={(e) => setCapas((c) => ({ ...c, dispositivo: e.target.checked }))}
+                  />
+                  <span className={estilos.puntoAzul} /> Dispositivo
+                </label>
+                <label className={estilos.capa}>
+                  <input
+                    type="checkbox"
+                    checked={capas.visita}
+                    onChange={(e) => setCapas((c) => ({ ...c, visita: e.target.checked }))}
+                  />
+                  <span className={estilos.puntoRojo} /> Visita
+                </label>
+                <label className={estilos.capa}>
+                  <input
+                    type="checkbox"
+                    checked={capas.cliente}
+                    onChange={(e) => setCapas((c) => ({ ...c, cliente: e.target.checked }))}
+                  />
+                  <span className={estilos.puntoVerde} /> Cliente
+                </label>
+                {filtro.funcionarios.length !== 1 ? (
+                  <span className={estilos.nota}>
+                    El recorrido del dispositivo requiere un solo funcionario.
+                  </span>
+                ) : null}
+              </div>
+
+              <Mapa
+                apiKey={google.apiKey}
+                marcadores={marcadores}
+                trazados={trazados}
+                altura="28rem"
+              />
+            </>
           ) : null}
 
           <div style={{ marginTop: "var(--space-5)" }}>
@@ -494,10 +629,30 @@ export function VisitasDetalleBase({ modo, titulo, descripcion }: Props) {
               error={visitas.error}
               vacio="No hay visitas para los filtros seleccionados."
               porPagina={25}
+              exportar={`visitas-${modo === "agrupada" ? "efectuadas" : "detalladas"}`}
             />
           </div>
         </>
       )}
+
+      {/* Mapa de una visita concreta (boton "Ver" de la fila). */}
+      <Modal
+        abierto={visitaEnMapa !== null}
+        titulo={visitaEnMapa ? visitaEnMapa.rctt_nomcli || visitaEnMapa.rctt_razsoc : "Ubicación"}
+        descripcion={
+          visitaEnMapa
+            ? `${visitaEnMapa.rctt_cust} · ${visitaEnMapa.rvis_fecvis} ${visitaEnMapa.rvis_horinivis ?? ""}`
+            : undefined
+        }
+        onCerrar={() => setVisitaEnMapa(null)}
+        ancho="44rem"
+      >
+        {visitaEnMapa && google.apiKey ? (
+          <Mapa apiKey={google.apiKey} marcadores={marcadoresFila} altura="24rem" />
+        ) : (
+          <Alert tone="warning">Esta visita no tiene coordenadas registradas.</Alert>
+        )}
+      </Modal>
     </>
   );
 }

@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { PageHeader } from "../../components/layout/PageHeader";
 import { Button } from "../../components/ui/Button";
 import { Badge } from "../../components/ui/Badge";
+import { Avatar } from "../../components/ui/Avatar";
 import { DataTable, type Columna } from "../../components/ui/DataTable";
 import { ConfirmDialog } from "../../components/ui/ConfirmDialog";
 import { IconEdit, IconPlus, IconTrash, IconUsers } from "../../components/icons";
@@ -28,6 +29,11 @@ export function UsuariosPage() {
   }
 
   const columnas: Columna<AspNetUserE>[] = [
+    {
+      titulo: "",
+      ancho: "3.5rem",
+      render: (u) => <Avatar email={u.Email} nombre={`${u.FirstName} ${u.LastName}`} size={34} />,
+    },
     {
       titulo: "Nombre",
       valor: (u) => `${u.FirstName} ${u.LastName}`,
@@ -101,6 +107,7 @@ export function UsuariosPage() {
         cargando={cargando}
         error={error}
         vacio="No hay usuarios registrados."
+        exportar="usuarios"
       />
 
       <ConfirmDialog

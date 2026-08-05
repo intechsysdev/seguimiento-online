@@ -10,6 +10,7 @@ import {
 } from "react";
 import { setTokenProvider, setUnauthorizedHandler } from "../api/http";
 import { authService } from "../services/authService";
+import { limpiarFotos } from "../services/fotosUsuarios";
 import { tenantService } from "../services/tenantService";
 import type { TenantDto } from "../types/seguridad";
 import type { Session } from "../types/session";
@@ -74,6 +75,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const logout = useCallback(() => {
     sessionStorage.removeItem(STORAGE_KEY);
+    // Las fotos se cachean en memoria: se descartan para no mostrarlas al
+    // siguiente usuario que inicie sesion en la misma pestaña.
+    limpiarFotos();
     setSession(null);
   }, []);
 

@@ -1,7 +1,7 @@
 {
-  "name": "seguimientoonline-new",
+  "name": "seguimiento-online",
   "private": true,
-  "version": "0.0.0",
+  "version": "2026.1.1",
   "type": "module",
   "scripts": {
     "dev": "vite",

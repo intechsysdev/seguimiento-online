@@ -47,14 +47,14 @@ export function useUsuariosAsignados() {
     error =
       "No hay una compañía activa con API configurada. Revisa Administración → Compañías.";
   } else if (todos.error) {
-    error = `No se pudieron cargar los vendedores desde ${tenant.APIUrlTenant} — ${todos.error}`;
+    error = `No se pudieron cargar los funcionarios desde ${tenant.APIUrlTenant} — ${todos.error}`;
   } else if (asignaciones.error) {
     error = `No se pudieron cargar las asignaciones del usuario — ${asignaciones.error}`;
   } else if (!todos.cargando && !asignaciones.cargando && usuarios.length === 0) {
     error =
       (todos.datos?.length ?? 0) === 0
-        ? "El API de la compañía no devolvió vendedores."
-        : "Tu usuario no tiene vendedores asignados en esta compañía. Asígnalos en Administración → Usuarios asignados.";
+        ? "El API de la compañía no devolvió funcionarios."
+        : "Tu usuario no tiene funcionarios asignados en esta compañía. Asígnalos en Administración → Usuarios asignados.";
   }
 
   return {

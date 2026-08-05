@@ -148,7 +148,7 @@ export function UbicacionesPage() {
 
   const columnas: Columna<FilaUbicacion>[] = [
     {
-      titulo: "Vendedor",
+      titulo: "Funcionario",
       valor: (f) => f.nombre,
       render: (f) => (
         <div>
@@ -223,7 +223,7 @@ export function UbicacionesPage() {
         />
 
         <MultiSelect
-          etiqueta="Vendedores"
+          etiqueta="Funcionarios"
           opciones={usuarios.map((u) => ({
             valor: u.KEY_rusu_codusu,
             etiqueta: `${u.KEY_rusu_codusu} — ${u.rusu_nombre}`,
@@ -290,6 +290,7 @@ export function UbicacionesPage() {
               claveFila={(f) => f.deviceId}
               vacio="No hay dispositivos para los filtros seleccionados."
               porPagina={15}
+              exportar="ubicaciones"
             />
           </div>
         </>

@@ -57,6 +57,9 @@
   width: 100%;
   border-collapse: collapse;
   font-size: var(--text-sm);
+  /* Con muchas columnas (Visitas detalladas llega a 15) es preferible que la
+     tabla desborde y aparezca el scroll horizontal antes que aplastar celdas. */
+  min-width: max-content;
 }
 
 .tabla th {
@@ -144,5 +147,33 @@
 
 .paginador button:not(:disabled):hover {
   border-color: var(--color-accent);
+  color: var(--color-accent);
+}
+
+/* Botones de exportacion: equivalen a copy/csv/excel de DataTables. */
+.exportar {
+  display: inline-flex;
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+  background: var(--color-surface);
+}
+
+.exportar button {
+  border: none;
+  background: none;
+  padding: 0.35rem 0.7rem;
+  font-size: var(--text-xs);
+  font-family: inherit;
+  font-weight: 600;
+  color: var(--color-ink-muted);
+}
+
+.exportar button + button {
+  border-left: 1px solid var(--color-border);
+}
+
+.exportar button:hover {
+  background: var(--color-accent-soft);
   color: var(--color-accent);
 }

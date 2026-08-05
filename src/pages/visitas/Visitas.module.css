@@ -1,0 +1,63 @@
+/* Selector de capas del mapa: reemplaza los checks del modal de Summary.cshtml. */
+.capas {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+  flex-wrap: wrap;
+  margin-bottom: var(--space-3);
+  padding: var(--space-3) var(--space-4);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+}
+
+.capasTitulo {
+  font-size: var(--text-xs);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-weight: 600;
+  color: var(--color-ink-faint);
+}
+
+.capa {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: var(--text-sm);
+  color: var(--color-ink);
+}
+
+.puntoAzul,
+.puntoRojo,
+.puntoVerde {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  display: inline-block;
+}
+
+.puntoAzul {
+  background: #1a73e8;
+}
+
+.puntoRojo {
+  background: #d93025;
+}
+
+.puntoVerde {
+  background: #2e9e4f;
+}
+
+.nota {
+  font-size: var(--text-xs);
+  color: var(--color-ink-muted);
+  margin-left: auto;
+}
+
+.puntoMorado {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  display: inline-block;
+  background: #8430ce;
+}

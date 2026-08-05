@@ -106,7 +106,13 @@ export function ConsolidadasPage() {
       ancho: "8rem",
     },
     {
-      titulo: "Vendedor",
+      titulo: "Cód. funcionario",
+      ancho: "7rem",
+      valor: (v) => v.rvis_enter ?? "",
+      render: (v) => <code>{v.rvis_enter}</code>,
+    },
+    {
+      titulo: "Funcionario",
       valor: (v) => v.rusu_nombre,
       render: (v) => (
         <div>
@@ -144,17 +150,20 @@ export function ConsolidadasPage() {
     },
     {
       titulo: "",
-      ancho: "7rem",
+      ancho: "12rem",
       alineacion: "derecha",
-      render: (v) => (
-        <Link
-          to={`/visitas/detalladas?codUsu=${encodeURIComponent(
-            codigoDeVendedor(usuarios, v.rusu_nombre),
-          )}&fecIni=${filtro.fecIni}&fecFin=${filtro.fecFin}`}
-        >
-          Ver detalle
-        </Link>
-      ),
+      render: (v) => {
+        // El MVC enlazaba a SummaryGroup (Efectuadas) con codUsu = rvis_enter.
+        // Las fechas van en ISO (las del filtro), no rvis_fecvis, porque el
+        // destino las carga en un <input type="date">.
+        const query = `codUsu=${encodeURIComponent(v.rvis_enter)}&fecIni=${filtro.fecIni}&fecFin=${filtro.fecFin}`;
+        return (
+          <div className={formularios.accionesFila}>
+            <Link to={`/visitas/efectuadas?${query}`}>Efectuadas</Link>
+            <Link to={`/visitas/detalladas?${query}`}>Detalladas</Link>
+          </div>
+        );
+      },
     },
   ];
 
@@ -163,7 +172,7 @@ export function ConsolidadasPage() {
       <PageHeader
         eyebrow="Visitas"
         title="Consolidadas"
-        description="Resumen de visitas por vendedor y día."
+        description="Resumen de visitas por funcionario y día."
         actions={
           <div className={formularios.accionesFila}>
             <Badge tone="accent">{totalVisitas} visitas</Badge>
@@ -196,7 +205,7 @@ export function ConsolidadasPage() {
         </Field>
 
         <MultiSelect
-          etiqueta="Vendedores"
+          etiqueta="Funcionarios"
           opciones={usuarios.map((u) => ({
             valor: u.KEY_rusu_codusu,
             etiqueta: `${u.KEY_rusu_codusu} — ${u.rusu_nombre}`,
@@ -302,15 +311,8 @@ export function ConsolidadasPage() {
         error={resumen.error}
         vacio="No hay visitas para los filtros seleccionados."
         porPagina={25}
+        exportar="visitas-consolidadas"
       />
     </>
   );
-}
-
-/** El resumen no trae el codigo del vendedor, solo el nombre. */
-function codigoDeVendedor(
-  usuarios: { KEY_rusu_codusu: string; rusu_nombre: string }[],
-  nombre: string,
-) {
-  return usuarios.find((u) => u.rusu_nombre === nombre)?.KEY_rusu_codusu ?? "";
 }

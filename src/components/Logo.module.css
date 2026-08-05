@@ -1,0 +1,43 @@
+.fondo {
+  fill: var(--color-accent);
+}
+
+.pin {
+  fill: var(--color-accent-contrast);
+}
+
+.punto {
+  fill: var(--color-accent);
+}
+
+.ruta {
+  stroke: var(--color-accent-contrast);
+  opacity: 0.55;
+}
+
+.completo {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.texto {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.05;
+}
+
+.texto strong {
+  font-family: var(--font-display);
+  font-size: var(--text-md);
+  font-weight: 600;
+  color: var(--color-ink);
+}
+
+.texto span {
+  font-size: var(--text-xs);
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--color-accent);
+  font-weight: 600;
+}

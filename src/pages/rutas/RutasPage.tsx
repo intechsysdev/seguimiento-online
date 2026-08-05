@@ -17,9 +17,10 @@ import { mobicontrolService } from "../../services/mobicontrolService";
 import { paramService, PARAM_DISTANCIA_PRESENCIAL } from "../../services/paramService";
 import { esVisitaPresencial } from "../../utils/geo";
 import { aFormatoApi, hoyISO } from "../../utils/dates";
-import type { MobRutaDto } from "../../types/eva";
+import type { MobRutaDto, MobVisitaGrupoDto } from "../../types/eva";
 import inputs from "../../components/ui/inputs.module.css";
 import formularios from "../seguridad/Formularios.module.css";
+import estilos from "../visitas/Visitas.module.css";
 
 interface Filtro {
   fecha: string;
@@ -97,6 +98,14 @@ export function RutasPage() {
 
   const [borrador, setBorrador] = useState<Filtro>(filtroInicial);
   const [filtro, setFiltro] = useState<Filtro>(filtroInicial);
+
+  /** Capas visibles del mapa. */
+  const [capas, setCapas] = useState({
+    cliente: true,
+    visita: true,
+    dispositivo: true,
+    extraruta: true,
+  });
 
   // El controller solo consultaba cuando habia vendedores seleccionados.
   const hayVendedores = filtro.vendedores.length > 0;
@@ -201,44 +210,90 @@ export function RutasPage() {
     mobi.token,
   ]);
 
+  /**
+   * Capas del mapa. Ademas de las tres del MVC (Cliente, Visita, Dispositivo)
+   * se añade Extraruta: las visitas que no estaban en la ruta planificada.
+   */
   const marcadores: MarcadorMapa[] = useMemo(() => {
-    const lista = datos.datos?.rutas ?? [];
-    return lista
-      .filter((r) => Number(r.rctt_latitud) && Number(r.rctt_longitud))
-      .map((r, indice) => ({
-        id: `${r.rruta_cus}-${r.rruta_succli}`,
-        lat: Number(r.rctt_latitud),
-        lng: Number(r.rctt_longitud),
-        titulo: r.rctt_nomcli || r.rctt_razsoc,
-        etiqueta: String(indice + 1),
-        color: !r.FueVisita ? "rojo" : r.FuePresencial ? "verde" : "ambar",
-        detalle: `<strong>${r.rctt_nomcli || r.rctt_razsoc}</strong><br/>${r.rruta_cus}<br/>${
-          r.FueVisita
-            ? `Visitada ${r.rvis_horinivis ?? ""} - ${r.rvis_horfinvis ?? ""}${
-                r.FuePresencial ? " (presencial)" : " (fuera de radio)"
-              }`
-            : "Sin visita"
-        }`,
-      }));
-  }, [datos.datos]);
+    const lista: MarcadorMapa[] = [];
+    const rutas = datos.datos?.rutas ?? [];
+
+    if (capas.cliente) {
+      rutas
+        .filter((r) => Number(r.rctt_latitud) && Number(r.rctt_longitud))
+        .forEach((r, indice) =>
+          lista.push({
+            id: `cli-${r.rruta_cus}-${r.rruta_succli}`,
+            lat: Number(r.rctt_latitud),
+            lng: Number(r.rctt_longitud),
+            titulo: r.rctt_nomcli || r.rctt_razsoc,
+            etiqueta: String(indice + 1),
+            color: !r.FueVisita ? "rojo" : r.FuePresencial ? "verde" : "ambar",
+            detalle: `<strong>${r.rctt_nomcli || r.rctt_razsoc}</strong><br/>${r.rruta_cus}<br/>${
+              r.FueVisita
+                ? `Visitada ${r.rvis_horinivis ?? ""} - ${r.rvis_horfinvis ?? ""}${
+                    r.FuePresencial ? " (presencial)" : " (fuera de radio)"
+                  }`
+                : "Sin visita"
+            }`,
+          }),
+        );
+    }
+
+    if (capas.visita) {
+      rutas
+        .filter((r) => r.FueVisita && Number(r.latvis) && Number(r.longvis))
+        .forEach((r) =>
+          lista.push({
+            id: `vis-${r.rruta_cus}-${r.rruta_succli}`,
+            lat: Number(r.latvis),
+            lng: Number(r.longvis),
+            titulo: `Visita · ${r.rctt_nomcli || r.rctt_razsoc}`,
+            color: "rojo",
+            detalle: `<strong>Punto de la visita</strong><br/>${r.rctt_nomcli || r.rctt_razsoc}<br/>${r.rvis_horinivis ?? ""} - ${r.rvis_horfinvis ?? ""}`,
+          }),
+        );
+    }
+
+    if (capas.extraruta) {
+      (datos.datos?.extra ?? [])
+        .filter((v) => Number(v.rvis_latitud) && Number(v.rvis_longitud))
+        .forEach((v, indice) =>
+          lista.push({
+            id: `extra-${v.rvis_cust}-${v.rctt_succli}-${indice}`,
+            lat: Number(v.rvis_latitud),
+            lng: Number(v.rvis_longitud),
+            titulo: `Extraruta · ${v.rctt_nomcli || v.rctt_razsoc}`,
+            color: "morado",
+            detalle: `<strong>Extraruta</strong><br/>${v.rctt_nomcli || v.rctt_razsoc}<br/>${v.rvis_cust}<br/>${v.rvis_horinivis ?? ""} - ${v.rvis_horfinvis ?? ""}`,
+          }),
+        );
+    }
+
+    return lista;
+  }, [datos.datos, capas]);
 
   /**
-   * Dos rutas sobre el mapa, con los colores del MVC: naranja para la ruta
-   * planificada (orden de los clientes) y azul para el recorrido real del GPS.
+   * Naranja la ruta planificada (orden de los clientes) y azul el recorrido
+   * real del GPS, como en el MVC.
    */
   const trazados: Trazado[] = useMemo(() => {
     const lista: Trazado[] = [];
 
-    const clientes = (datos.datos?.rutas ?? [])
-      .filter((r) => Number(r.rctt_latitud) && Number(r.rctt_longitud))
-      .map((r) => ({ lat: Number(r.rctt_latitud), lng: Number(r.rctt_longitud) }));
-    if (clientes.length >= 2) lista.push({ puntos: clientes, color: "orange", grosor: 4 });
+    if (capas.cliente) {
+      const clientes = (datos.datos?.rutas ?? [])
+        .filter((r) => Number(r.rctt_latitud) && Number(r.rctt_longitud))
+        .map((r) => ({ lat: Number(r.rctt_latitud), lng: Number(r.rctt_longitud) }));
+      if (clientes.length >= 2) lista.push({ puntos: clientes, color: "orange", grosor: 4 });
+    }
 
-    const recorrido = datos.datos?.recorrido ?? [];
-    if (recorrido.length >= 2) lista.push({ puntos: recorrido, color: "#1a73e8", grosor: 4 });
+    if (capas.dispositivo) {
+      const recorrido = datos.datos?.recorrido ?? [];
+      if (recorrido.length >= 2) lista.push({ puntos: recorrido, color: "#1a73e8", grosor: 4 });
+    }
 
     return lista;
-  }, [datos.datos]);
+  }, [datos.datos, capas]);
 
   const columnas: Columna<MobRutaDto>[] = [
     {
@@ -260,7 +315,7 @@ export function RutasPage() {
         </div>
       ),
     },
-    { titulo: "Vendedor", valor: (r) => r.rusu_nombre ?? "", render: (r) => r.rusu_nombre },
+    { titulo: "Funcionario", valor: (r) => r.rusu_nombre ?? "", render: (r) => r.rusu_nombre },
     { titulo: "Ciudad", valor: (r) => r.dis_desc ?? "", render: (r) => r.dis_desc },
     { titulo: "Ruta", valor: (r) => r.rruta_ruta ?? "", render: (r) => r.rruta_ruta, ancho: "5rem" },
     {
@@ -284,6 +339,47 @@ export function RutasPage() {
       valor: (r) => r.rvis_horinivis ?? "",
       render: (r) =>
         r.rvis_horinivis ? `${r.rvis_horinivis} — ${r.rvis_horfinvis}` : "—",
+    },
+  ];
+
+  const extrarutas = datos.datos?.extra ?? [];
+
+  const columnasExtra: Columna<MobVisitaGrupoDto>[] = [
+    {
+      titulo: "Cód. funcionario",
+      ancho: "7rem",
+      valor: (v) => v.rvis_enter ?? v.rvis_codusu ?? "",
+      render: (v) => <code>{v.rvis_enter || v.rvis_codusu}</code>,
+    },
+    { titulo: "Funcionario", valor: (v) => v.rusu_nombre ?? "", render: (v) => v.rusu_nombre },
+    {
+      titulo: "Cód. cliente",
+      ancho: "7rem",
+      valor: (v) => v.rvis_cust ?? "",
+      render: (v) => <code>{v.rvis_cust}</code>,
+    },
+    {
+      titulo: "Cliente",
+      valor: (v) => v.rctt_nomcli || v.rctt_razsoc,
+      render: (v) => (
+        <div>
+          {v.rctt_nomcli || v.rctt_razsoc}
+          {v.rctt_addr ? <div className={formularios.sub}>{v.rctt_addr}</div> : null}
+        </div>
+      ),
+    },
+    { titulo: "Ciudad", valor: (v) => v.dis_desc ?? "", render: (v) => v.dis_desc },
+    {
+      titulo: "Horario",
+      ancho: "10rem",
+      valor: (v) => v.rvis_horinivis ?? "",
+      render: (v) => `${v.rvis_horinivis ?? ""} — ${v.rvis_horfinvis ?? ""}`,
+    },
+    { titulo: "Tiempo", ancho: "6rem", valor: (v) => v.tiempoVis ?? "", render: (v) => v.tiempoVis },
+    {
+      titulo: "Movimientos",
+      valor: (v) => v.Movimientos ?? "",
+      render: (v) => v.Movimientos || "—",
     },
   ];
 
@@ -327,7 +423,7 @@ export function RutasPage() {
         </Field>
 
         <MultiSelect
-          etiqueta="Vendedores"
+          etiqueta="Funcionarios"
           opciones={usuarios.map((u) => ({
             valor: u.KEY_rusu_codusu,
             etiqueta: `${u.KEY_rusu_codusu} — ${u.rusu_nombre}`,
@@ -408,18 +504,56 @@ export function RutasPage() {
       </div>
 
       {!hayVendedores ? (
-        <Alert tone="info">Selecciona al menos un vendedor para consultar su ruta.</Alert>
+        <Alert tone="info">Selecciona al menos un funcionario para consultar su ruta.</Alert>
       ) : datos.cargando ? (
         <Spinner mensaje="Consultando ruta y recorrido…" />
       ) : (
         <>
           {google.apiKey ? (
-            <Mapa
-              apiKey={google.apiKey}
-              marcadores={marcadores}
-              trazados={trazados}
-              altura="30rem"
-            />
+            <>
+              <div className={estilos.capas}>
+                <span className={estilos.capasTitulo}>Mostrar en el mapa</span>
+                <label className={estilos.capa}>
+                  <input
+                    type="checkbox"
+                    checked={capas.dispositivo}
+                    onChange={(e) => setCapas((c) => ({ ...c, dispositivo: e.target.checked }))}
+                  />
+                  <span className={estilos.puntoAzul} /> Dispositivo
+                </label>
+                <label className={estilos.capa}>
+                  <input
+                    type="checkbox"
+                    checked={capas.visita}
+                    onChange={(e) => setCapas((c) => ({ ...c, visita: e.target.checked }))}
+                  />
+                  <span className={estilos.puntoRojo} /> Visita
+                </label>
+                <label className={estilos.capa}>
+                  <input
+                    type="checkbox"
+                    checked={capas.cliente}
+                    onChange={(e) => setCapas((c) => ({ ...c, cliente: e.target.checked }))}
+                  />
+                  <span className={estilos.puntoVerde} /> Cliente / ruta
+                </label>
+                <label className={estilos.capa}>
+                  <input
+                    type="checkbox"
+                    checked={capas.extraruta}
+                    onChange={(e) => setCapas((c) => ({ ...c, extraruta: e.target.checked }))}
+                  />
+                  <span className={estilos.puntoMorado} /> Extraruta
+                </label>
+              </div>
+
+              <Mapa
+                apiKey={google.apiKey}
+                marcadores={marcadores}
+                trazados={trazados}
+                altura="30rem"
+              />
+            </>
           ) : null}
 
           <div style={{ marginTop: "var(--space-5)" }}>
@@ -430,8 +564,27 @@ export function RutasPage() {
               error={datos.error}
               vacio="No hay ruta planificada para la fecha y filtros seleccionados."
               porPagina={25}
+              exportar="rutas"
             />
           </div>
+
+          {/* Extrarutas: visitas efectuadas que no estaban en la ruta del dia. */}
+          {extrarutas.length > 0 ? (
+            <div style={{ marginTop: "var(--space-6)" }}>
+              <h3 className={formularios.subtitulo}>Extrarutas ({extrarutas.length})</h3>
+              <p className={formularios.sub} style={{ marginBottom: "var(--space-3)" }}>
+                Visitas registradas fuera de la ruta planificada del día.
+              </p>
+              <DataTable
+                columnas={columnasExtra}
+                filas={extrarutas}
+                claveFila={(v) => `${v.rvis_cust}-${v.rctt_succli}-${v.rvis_horinivis}`}
+                vacio="Sin extrarutas."
+                porPagina={15}
+                exportar="extrarutas"
+              />
+            </div>
+          ) : null}
         </>
       )}
     </>

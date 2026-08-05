@@ -1,14 +1,40 @@
 .wrap {
+  position: relative;
   min-height: 100dvh;
   display: grid;
+  grid-template-rows: 1fr auto;
   place-items: center;
   padding: var(--space-5);
+  overflow: hidden;
   background:
-    radial-gradient(ellipse at top, var(--color-accent-soft), transparent 60%),
+    radial-gradient(120% 90% at 80% 0%, var(--color-accent-soft), transparent 55%),
+    radial-gradient(90% 70% at 0% 100%, var(--color-surface-sunken), transparent 60%),
     var(--color-bg);
 }
 
+/* Fondo decorativo: rejilla + rutas. */
+.fondo {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  color: var(--color-border-strong);
+  opacity: 0.55;
+  pointer-events: none;
+}
+
+.rutas {
+  stroke: var(--color-accent);
+  opacity: 0.35;
+}
+
+.paradas circle {
+  fill: var(--color-accent);
+  opacity: 0.5;
+}
+
 .card {
+  position: relative;
   width: 100%;
   max-width: 26rem;
   background: var(--color-surface);
@@ -16,17 +42,24 @@
   border-radius: var(--radius-lg);
   box-shadow: var(--shadow-lg);
   padding: var(--space-6);
+  align-self: center;
 }
 
 .head {
   margin-bottom: var(--space-5);
 }
 
+.logo {
+  display: inline-flex;
+  margin-bottom: var(--space-4);
+}
+
 .marca {
   font-size: var(--text-xs);
-  letter-spacing: 0.12em;
+  letter-spacing: 0.14em;
   text-transform: uppercase;
-  color: var(--color-ink-faint);
+  color: var(--color-accent);
+  font-weight: 600;
   margin-bottom: var(--space-2);
 }
 
@@ -53,4 +86,23 @@
   display: flex;
   justify-content: center;
   gap: var(--space-3);
+}
+
+/* Copyright y version, visibles al ingresar al aplicativo. */
+.legal {
+  position: relative;
+  margin-top: var(--space-5);
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+  justify-content: center;
+  font-size: var(--text-xs);
+  color: var(--color-ink-faint);
+  text-align: center;
+}
+
+.legal span {
+  padding-left: var(--space-3);
+  border-left: 1px solid var(--color-border-strong);
 }

@@ -9,7 +9,10 @@ import {
   IconSun,
   IconX,
 } from "../icons";
+import { LogoMarca } from "../Logo";
+import { Avatar } from "../ui/Avatar";
 import { NAVEGACION, type NavEntrada } from "../../config/navigation";
+import { APP_COPYRIGHT, APP_NOMBRE, APP_VERSION } from "../../config/app";
 import { useAuth } from "../../store/AuthContext";
 import { useTheme } from "./useTheme";
 import styles from "./AppShell.module.css";
@@ -70,8 +73,8 @@ export function AppShell() {
       <aside className={[styles.sidebar, menuAbierto ? styles.sidebarAbierto : ""].join(" ")}>
         <div className={styles.sidebarHead}>
           <Link to="/" className={styles.brand}>
-            <span className={styles.brandMark}>SO</span>
-            <span className={styles.brandText}>Seguimiento Online</span>
+            <LogoMarca size={34} />
+            <span className={styles.brandText}>{APP_NOMBRE}</span>
           </Link>
           <button
             type="button"
@@ -82,6 +85,17 @@ export function AppShell() {
             <IconX />
           </button>
         </div>
+
+        {/* Tarjeta de usuario: equivale al user-card del _Layout del MVC. */}
+        {session ? (
+          <Link to="/perfil/foto" className={styles.usuarioCard}>
+            <Avatar email={session.username} nombre={session.username} size={38} />
+            <span className={styles.usuarioDatos}>
+              <span className={styles.usuarioNombre}>{session.username}</span>
+              <span className={styles.usuarioRol}>{session.role || "Usuario"}</span>
+            </span>
+          </Link>
+        ) : null}
 
         <nav className={styles.nav}>
           {entradas.map((entrada) => {
@@ -145,6 +159,11 @@ export function AppShell() {
             <p className={styles.sinModulos}>Tu usuario no tiene módulos asignados.</p>
           ) : null}
         </nav>
+
+        <footer className={styles.pieLateral}>
+          <span>{APP_COPYRIGHT}</span>
+          <span>Versión: {APP_VERSION}</span>
+        </footer>
       </aside>
 
       {menuAbierto ? (
@@ -196,8 +215,9 @@ export function AppShell() {
               {theme === "dark" ? <IconSun /> : <IconMoon />}
             </button>
 
-            <span className={styles.usuario} title={session?.username}>
-              {session?.username}
+            {/* En movil el sidebar esta oculto, asi que aqui queda la foto. */}
+            <span className={styles.usuarioMovil} title={session?.username}>
+              <Avatar email={session?.username} nombre={session?.username} size={30} />
             </span>
 
             <Link to="/cambiar-password" className={styles.iconBtn} aria-label="Cambiar contraseña">
@@ -219,7 +239,14 @@ export function AppShell() {
           {tenant ? null : (
             <p className={styles.avisoTenant}>No hay una compañía activa seleccionada.</p>
           )}
-          <Outlet />
+          {/*
+            La `key` remonta la pagina al cambiar de compañía. Sin esto los
+            filtros conservaban la seleccion de la compañía anterior (vendedores,
+            ciudades, rutas...), que no existe en la nueva, y la consulta salia
+            con datos que no correspondian. El MVC lograba lo mismo cerrando la
+            sesion en Seguridad/AssignmentCompany.
+          */}
+          <Outlet key={session?.tenantActual ?? "sin-compania"} />
         </main>
       </div>
     </div>

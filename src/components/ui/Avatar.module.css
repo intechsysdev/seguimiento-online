@@ -1,0 +1,23 @@
+.avatar,
+.iniciales {
+  border-radius: 50%;
+  flex-shrink: 0;
+  display: inline-grid;
+  place-items: center;
+  overflow: hidden;
+}
+
+.avatar {
+  object-fit: cover;
+  border: 1px solid var(--color-border-strong);
+  background: var(--color-surface-sunken);
+}
+
+.iniciales {
+  background: var(--color-accent-soft);
+  color: var(--color-accent);
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  border: 1px solid var(--color-border);
+  user-select: none;
+}

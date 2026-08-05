@@ -2,6 +2,7 @@ import { useMemo, useState, type ReactNode } from "react";
 import { IconSearch } from "../icons";
 import { Spinner } from "./Spinner";
 import { Alert } from "./Alert";
+import { copiarTabla, exportarCsv, exportarExcel } from "../../utils/exportar";
 import styles from "./DataTable.module.css";
 
 export interface Columna<T> {
@@ -26,6 +27,11 @@ interface DataTableProps<T> {
   buscador?: boolean;
   porPagina?: number;
   acciones?: ReactNode;
+  /**
+   * Nombre base del archivo. Al indicarlo se muestran los botones de copiar,
+   * CSV y Excel, equivalentes a los de DataTables en el MVC.
+   */
+  exportar?: string;
 }
 
 /** Reemplaza a jquery.dataTables, que el MVC inicializaba en cada vista. */
@@ -39,10 +45,12 @@ export function DataTable<T>({
   buscador = true,
   porPagina = 15,
   acciones,
+  exportar,
 }: DataTableProps<T>) {
   const [busqueda, setBusqueda] = useState("");
   const [pagina, setPagina] = useState(0);
   const [orden, setOrden] = useState<{ indice: number; asc: boolean } | null>(null);
+  const [copiado, setCopiado] = useState(false);
 
   const filtradas = useMemo(() => {
     const base = filas ?? [];
@@ -76,6 +84,28 @@ export function DataTable<T>({
   const paginaActual = Math.min(pagina, totalPaginas - 1);
   const visibles = filtradas.slice(paginaActual * porPagina, (paginaActual + 1) * porPagina);
 
+  /**
+   * Se exportan las filas ya filtradas y ordenadas (lo que ve el usuario), y
+   * solo las columnas con `valor`: las de acciones no tienen contenido util.
+   */
+  function datosExport() {
+    const exportables = columnas.filter((c) => c.valor);
+    return {
+      encabezados: exportables.map((c) => c.titulo),
+      filas: filtradas.map((fila) => exportables.map((c) => String(c.valor!(fila) ?? ""))),
+    };
+  }
+
+  async function copiar() {
+    try {
+      await copiarTabla(datosExport());
+      setCopiado(true);
+      setTimeout(() => setCopiado(false), 2000);
+    } catch {
+      setCopiado(false);
+    }
+  }
+
   function alternarOrden(indice: number) {
     if (!columnas[indice]?.valor) return;
     setOrden((previo) =>
@@ -85,7 +115,7 @@ export function DataTable<T>({
 
   return (
     <div className={styles.wrap}>
-      {(buscador || acciones) && (
+      {(buscador || acciones || exportar) && (
         <div className={styles.barra}>
           {buscador && (
             <label className={styles.buscador}>
@@ -102,7 +132,22 @@ export function DataTable<T>({
               />
             </label>
           )}
-          {acciones ? <div className={styles.acciones}>{acciones}</div> : null}
+          <div className={styles.acciones}>
+            {exportar && filtradas.length > 0 ? (
+              <div className={styles.exportar}>
+                <button type="button" onClick={copiar}>
+                  {copiado ? "Copiado" : "Copiar"}
+                </button>
+                <button type="button" onClick={() => exportarCsv(datosExport(), exportar)}>
+                  CSV
+                </button>
+                <button type="button" onClick={() => exportarExcel(datosExport(), exportar)}>
+                  Excel
+                </button>
+              </div>
+            ) : null}
+            {acciones}
+          </div>
         </div>
       )}
 

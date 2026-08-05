@@ -16,6 +16,7 @@ import {
 } from "./pages/account/StatusPages";
 
 import { HomePage } from "./pages/HomePage";
+import { DashboardPage } from "./pages/dashboard/DashboardPage";
 import { CompaniasPage } from "./pages/seguridad/CompaniasPage";
 import { UsuariosPage } from "./pages/seguridad/UsuariosPage";
 import { UsuarioFormPage } from "./pages/seguridad/UsuarioFormPage";
@@ -56,7 +57,8 @@ function App() {
           {/* Privadas: equivalen a los controllers con [Authorize]. */}
           <Route element={<ProtectedRoute />}>
             <Route element={<AppShell />}>
-              <Route path="/" element={<HomePage />} />
+              <Route path="/" element={<DashboardPage />} />
+              <Route path="/accesos" element={<HomePage />} />
               <Route path="/cambiar-password" element={<ChangePasswordPage />} />
               <Route path="/perfil/foto" element={<FotoPerfilPage />} />
             </Route>
