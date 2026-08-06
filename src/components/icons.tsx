@@ -258,3 +258,59 @@ export function IconSearch(props: IconProps) {
     </svg>
   );
 }
+
+/** Visitas consolidadas: resumen agregado. */
+export function IconResumen(props: IconProps) {
+  return (
+    <svg {...base} {...props}>
+      <path d="M3 3v16a2 2 0 0 0 2 2h16" />
+      <path d="M7 15l3.5-4 3 2.5L20 7" />
+    </svg>
+  );
+}
+
+/** Visitas efectuadas: agrupadas por cliente. */
+export function IconEfectuadas(props: IconProps) {
+  return (
+    <svg {...base} {...props}>
+      <path d="M4 6h10M4 12h10M4 18h6" />
+      <path d="m15 17 2 2 4-4" />
+    </svg>
+  );
+}
+
+/** Visitas detalladas: una fila por movimiento. */
+export function IconDetalle(props: IconProps) {
+  return (
+    <svg {...base} {...props}>
+      <path d="M8 5h13M8 12h13M8 19h13" />
+      <path d="M3.5 5h.01M3.5 12h.01M3.5 19h.01" />
+    </svg>
+  );
+}
+
+export function IconDispositivo(props: IconProps) {
+  return (
+    <svg {...base} {...props}>
+      <rect x="6" y="2" width="12" height="20" rx="2.5" />
+      <path d="M10 18.5h4" />
+    </svg>
+  );
+}
+
+export function IconEstrella(props: IconProps) {
+  return (
+    <svg {...base} {...props}>
+      <path d="m12 3 2.9 6 6.6.9-4.8 4.6 1.2 6.5L12 17.9 6.1 21l1.2-6.5L2.5 9.9 9.1 9Z" />
+    </svg>
+  );
+}
+
+export function IconCamera(props: IconProps) {
+  return (
+    <svg {...base} {...props}>
+      <path d="M4 7h3l1.5-2h7L17 7h3a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V9a2 2 0 0 1 2-2Z" />
+      <circle cx="12" cy="13.5" r="3.5" />
+    </svg>
+  );
+}

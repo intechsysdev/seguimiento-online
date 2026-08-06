@@ -7,6 +7,8 @@ import { Alert } from "../../components/ui/Alert";
 import { Field } from "../../components/ui/Field";
 import { DataTable, type Columna } from "../../components/ui/DataTable";
 import { MultiSelect } from "../../components/ui/MultiSelect";
+import { Modal } from "../../components/ui/Modal";
+import { IconDetalle, IconEfectuadas } from "../../components/icons";
 import { useApi } from "../../hooks/useApi";
 import { useUsuariosAsignados } from "../../hooks/useUsuariosAsignados";
 import { catalogosEvaService } from "../../services/eva/catalogosEvaService";
@@ -15,6 +17,7 @@ import { aFormatoApi, hoyISO } from "../../utils/dates";
 import type { MobVisitaResumen } from "../../types/eva";
 import inputs from "../../components/ui/inputs.module.css";
 import formularios from "../seguridad/Formularios.module.css";
+import estilos from "./Visitas.module.css";
 
 interface Filtro {
   fecIni: string;
@@ -74,6 +77,9 @@ export function ConsolidadasPage() {
 
   const [borrador, setBorrador] = useState<Filtro>(filtroInicial);
   const [filtro, setFiltro] = useState<Filtro>(filtroInicial);
+
+  /** Fila elegida: abre el dialogo para escoger efectuadas o detalladas. */
+  const [seleccionada, setSeleccionada] = useState<MobVisitaResumen | null>(null);
 
   const resumen = useApi(() => {
     if (!tenant || !cmpy || cargandoUsuarios) return Promise.resolve([]);
@@ -150,20 +156,13 @@ export function ConsolidadasPage() {
     },
     {
       titulo: "",
-      ancho: "12rem",
+      ancho: "8rem",
       alineacion: "derecha",
-      render: (v) => {
-        // El MVC enlazaba a SummaryGroup (Efectuadas) con codUsu = rvis_enter.
-        // Las fechas van en ISO (las del filtro), no rvis_fecvis, porque el
-        // destino las carga en un <input type="date">.
-        const query = `codUsu=${encodeURIComponent(v.rvis_enter)}&fecIni=${filtro.fecIni}&fecFin=${filtro.fecFin}`;
-        return (
-          <div className={formularios.accionesFila}>
-            <Link to={`/visitas/efectuadas?${query}`}>Efectuadas</Link>
-            <Link to={`/visitas/detalladas?${query}`}>Detalladas</Link>
-          </div>
-        );
-      },
+      render: (v) => (
+        <Button variant="secondary" size="sm" onClick={() => setSeleccionada(v)}>
+          Ver visitas
+        </Button>
+      ),
     },
   ];
 
@@ -313,6 +312,62 @@ export function ConsolidadasPage() {
         porPagina={25}
         exportar="visitas-consolidadas"
       />
+
+      {/*
+        Elegir el tipo de consulta desde la propia fila evita tener que ir al
+        menu lateral para cambiar entre efectuadas y detalladas.
+      */}
+      <Modal
+        abierto={seleccionada !== null}
+        titulo="¿Qué visitas quieres ver?"
+        descripcion={
+          seleccionada
+            ? `${seleccionada.rusu_nombre} (${seleccionada.rvis_enter}) · ${seleccionada.rvis_fecvis} · ${seleccionada.cantvisitas} visitas`
+            : undefined
+        }
+        onCerrar={() => setSeleccionada(null)}
+      >
+        <div className={estilos.opciones}>
+          <Link
+            to={`/visitas/efectuadas?${enlaceVisitas(seleccionada, filtro)}`}
+            className={estilos.opcion}
+          >
+            <span className={estilos.opcionIcono}>
+              <IconEfectuadas />
+            </span>
+            <span>
+              <strong>Efectuadas</strong>
+              <small>Una fila por cliente, con los documentos generados.</small>
+            </span>
+          </Link>
+
+          <Link
+            to={`/visitas/detalladas?${enlaceVisitas(seleccionada, filtro)}`}
+            className={estilos.opcion}
+          >
+            <span className={estilos.opcionIcono}>
+              <IconDetalle />
+            </span>
+            <span>
+              <strong>Detalladas</strong>
+              <small>Una fila por movimiento, con medio, motivo y acción.</small>
+            </span>
+          </Link>
+        </div>
+      </Modal>
     </>
   );
+}
+
+/**
+ * Query para saltar de una fila del consolidado al detalle.
+ * El MVC usaba codUsu = rvis_enter; las fechas van en ISO porque el destino
+ * las carga en un <input type="date">.
+ */
+function enlaceVisitas(
+  fila: { rvis_enter: string } | null,
+  filtro: { fecIni: string; fecFin: string },
+) {
+  if (!fila) return "";
+  return `codUsu=${encodeURIComponent(fila.rvis_enter)}&fecIni=${filtro.fecIni}&fecFin=${filtro.fecFin}`;
 }

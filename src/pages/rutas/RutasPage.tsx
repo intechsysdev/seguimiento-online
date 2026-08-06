@@ -128,7 +128,27 @@ export function RutasPage() {
       Ciudades: filtro.ciudades,
     };
 
-    const visitas = await visitasEvaService.getListCompuestoRutasGroup(tenant, filtroVisitas);
+    // El agrupado no trae `Movimientos`; el controller lo completaba pidiendo
+    // tambien el detalle y uniendo los docvis_desc por cliente.
+    const [agrupadas, detalle] = await Promise.all([
+      visitasEvaService.getListCompuestoRutasGroup(tenant, filtroVisitas),
+      visitasEvaService.getListCompuesto(tenant, filtroVisitas).catch(() => []),
+    ]);
+
+    const movimientosPorCliente = new Map<string, Set<string>>();
+    (detalle ?? []).forEach((d) => {
+      if (!d.docvis_desc) return;
+      const clave = `${d.rctt_cust}|${d.rctt_succli}`;
+      if (!movimientosPorCliente.has(clave)) movimientosPorCliente.set(clave, new Set());
+      movimientosPorCliente.get(clave)!.add(d.docvis_desc);
+    });
+
+    const visitas = (agrupadas ?? []).map((v) => ({
+      ...v,
+      Movimientos:
+        v.Movimientos ||
+        [...(movimientosPorCliente.get(`${v.rvis_cust}|${v.rctt_succli}`) ?? [])].join(", "),
+    }));
 
     const rutas = await rutasEvaService.getDetailDataCliente(tenant, {
       cmpy,
@@ -224,6 +244,7 @@ export function RutasPage() {
         .forEach((r, indice) =>
           lista.push({
             id: `cli-${r.rruta_cus}-${r.rruta_succli}`,
+            tipo: "cliente" as const,
             lat: Number(r.rctt_latitud),
             lng: Number(r.rctt_longitud),
             titulo: r.rctt_nomcli || r.rctt_razsoc,
@@ -246,6 +267,7 @@ export function RutasPage() {
         .forEach((r) =>
           lista.push({
             id: `vis-${r.rruta_cus}-${r.rruta_succli}`,
+            tipo: "visita" as const,
             lat: Number(r.latvis),
             lng: Number(r.longvis),
             titulo: `Visita · ${r.rctt_nomcli || r.rctt_razsoc}`,
@@ -261,6 +283,7 @@ export function RutasPage() {
         .forEach((v, indice) =>
           lista.push({
             id: `extra-${v.rvis_cust}-${v.rctt_succli}-${indice}`,
+            tipo: "extraruta" as const,
             lat: Number(v.rvis_latitud),
             lng: Number(v.rvis_longitud),
             titulo: `Extraruta · ${v.rctt_nomcli || v.rctt_razsoc}`,
@@ -284,12 +307,24 @@ export function RutasPage() {
       const clientes = (datos.datos?.rutas ?? [])
         .filter((r) => Number(r.rctt_latitud) && Number(r.rctt_longitud))
         .map((r) => ({ lat: Number(r.rctt_latitud), lng: Number(r.rctt_longitud) }));
-      if (clientes.length >= 2) lista.push({ puntos: clientes, color: "orange", grosor: 4 });
+      if (clientes.length >= 2)
+        lista.push({ puntos: clientes, color: "#f57c00", grosor: 5, opacidad: 0.6 });
+    }
+
+    // Orden real en que se efectuaron las visitas.
+    if (capas.visita) {
+      const visitadas = (datos.datos?.rutas ?? [])
+        .filter((r) => r.FueVisita && Number(r.latvis) && Number(r.longvis))
+        .sort((a, b) => (a.order ?? 0) - (b.order ?? 0))
+        .map((r) => ({ lat: Number(r.latvis), lng: Number(r.longvis) }));
+      if (visitadas.length >= 2)
+        lista.push({ puntos: visitadas, color: "#d93025", grosor: 3, opacidad: 0.95 });
     }
 
     if (capas.dispositivo) {
       const recorrido = datos.datos?.recorrido ?? [];
-      if (recorrido.length >= 2) lista.push({ puntos: recorrido, color: "#1a73e8", grosor: 4 });
+      if (recorrido.length >= 2)
+        lista.push({ puntos: recorrido, color: "#1a73e8", grosor: 3, opacidad: 0.85 });
     }
 
     return lista;

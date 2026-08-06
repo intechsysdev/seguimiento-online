@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { useSearchParams } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import { PageHeader } from "../../components/layout/PageHeader";
 import { Button } from "../../components/ui/Button";
 import { Badge } from "../../components/ui/Badge";
@@ -9,7 +9,7 @@ import { Spinner } from "../../components/ui/Spinner";
 import { Modal } from "../../components/ui/Modal";
 import { DataTable, type Columna } from "../../components/ui/DataTable";
 import { MultiSelect } from "../../components/ui/MultiSelect";
-import { IconMap } from "../../components/icons";
+import { IconDetalle, IconMap } from "../../components/icons";
 import { Mapa, type MarcadorMapa, type Trazado } from "../../components/mapa/Mapa";
 import { useApi } from "../../hooks/useApi";
 import { useGoogleMapsKey, useMobiControl } from "../../hooks/useAppConfig";
@@ -96,6 +96,8 @@ export function VisitasDetalleBase({ modo, titulo, descripcion }: Props) {
     params.get("fecIni") ?? hoyISO(),
     params.get("fecFin") ?? hoyISO(),
   );
+  // El codigo de cliente tambien puede llegar por la URL (desde Efectuadas).
+  inicial.codCust = params.get("codCust") ?? "";
 
   const [borrador, setBorrador] = useState<Filtro>(inicial);
   const [filtro, setFiltro] = useState<Filtro>(inicial);
@@ -162,9 +164,32 @@ export function VisitasDetalleBase({ modo, titulo, descripcion }: Props) {
       cantVisitaHasta: 0,
     };
 
-    return modo === "agrupada"
-      ? visitasEvaService.getListCompuestoGroup(tenant, filtroApi)
-      : visitasEvaService.getListCompuesto(tenant, filtroApi);
+    if (modo === "detallada") return visitasEvaService.getListCompuesto(tenant, filtroApi);
+
+    /*
+     * El endpoint agrupado NO devuelve `Movimientos`: el MVC lo armaba pidiendo
+     * ademas el detalle y uniendo los `docvis_desc` de cada cliente
+     * (RutasController). Sin esta segunda consulta la columna sale vacia.
+     */
+    return Promise.all([
+      visitasEvaService.getListCompuestoGroup(tenant, filtroApi),
+      visitasEvaService.getListCompuesto(tenant, filtroApi).catch(() => [] as MobVisitaDto[]),
+    ]).then(([grupos, detalle]) => {
+      const porCliente = new Map<string, Set<string>>();
+      (detalle ?? []).forEach((d) => {
+        if (!d.docvis_desc) return;
+        const clave = `${d.rctt_cust}|${d.rctt_succli}`;
+        if (!porCliente.has(clave)) porCliente.set(clave, new Set());
+        porCliente.get(clave)!.add(d.docvis_desc);
+      });
+
+      return (grupos ?? []).map((g) => ({
+        ...g,
+        Movimientos:
+          g.Movimientos ||
+          [...(porCliente.get(`${g.rvis_cust}|${g.rctt_succli}`) ?? [])].join(", "),
+      }));
+    });
   }, [tenant?.IDTenant, filtro, codigosAsignados, cargandoUsuarios, modo]);
 
   /** Recorrido GPS: solo tiene sentido con un vendedor concreto. */
@@ -187,6 +212,16 @@ export function VisitasDetalleBase({ modo, titulo, descripcion }: Props) {
       .sort((a, b) => a.Timestamp.localeCompare(b.Timestamp))
       .map((p) => ({ lat: Number(p.Latitude), lng: Number(p.Longitude) }));
   }, [filtro.funcionarios, filtro.fecIni, filtro.fecFin, mobi.config?.IDApplicationConfig, mobi.token]);
+
+  /**
+   * En el DTO agrupado el cliente viene en `rvis_cust`, no en `rctt_cust`
+   * (asi lo muestra SummaryGroup.cshtml). Por eso en Efectuadas la columna
+   * salia vacia.
+   */
+  function codigoCliente(v: Fila) {
+    const grupo = v as MobVisitaGrupoDto;
+    return grupo.rvis_cust || v.rctt_cust || "";
+  }
 
   function detalleHtml(v: Fila) {
     return (
@@ -212,6 +247,7 @@ export function VisitasDetalleBase({ modo, titulo, descripcion }: Props) {
         .forEach((v, indice) =>
           lista.push({
             id: `vis-${v.rctt_cust}-${v.rctt_succli}-${indice}`,
+            tipo: "visita" as const,
             lat: Number(v.rvis_latitud),
             lng: Number(v.rvis_longitud),
             titulo: `Visita · ${v.rctt_nomcli || v.rctt_razsoc}`,
@@ -228,6 +264,7 @@ export function VisitasDetalleBase({ modo, titulo, descripcion }: Props) {
         .forEach((v, indice) =>
           lista.push({
             id: `cli-${v.rctt_cust}-${v.rctt_succli}-${indice}`,
+            tipo: "cliente" as const,
             lat: Number(v.rctt_latitud),
             lng: Number(v.rctt_longitud),
             titulo: `Cliente · ${v.rctt_nomcli || v.rctt_razsoc}`,
@@ -265,6 +302,7 @@ export function VisitasDetalleBase({ modo, titulo, descripcion }: Props) {
     if (Number(visitaEnMapa.rctt_latitud) && Number(visitaEnMapa.rctt_longitud)) {
       lista.push({
         id: "cliente",
+        tipo: "cliente" as const,
         lat: Number(visitaEnMapa.rctt_latitud),
         lng: Number(visitaEnMapa.rctt_longitud),
         titulo: "Ubicación del cliente",
@@ -275,6 +313,7 @@ export function VisitasDetalleBase({ modo, titulo, descripcion }: Props) {
     if (Number(visitaEnMapa.rvis_latitud) && Number(visitaEnMapa.rvis_longitud)) {
       lista.push({
         id: "visita",
+        tipo: "visita" as const,
         lat: Number(visitaEnMapa.rvis_latitud),
         lng: Number(visitaEnMapa.rvis_longitud),
         titulo: "Ubicación de la visita",
@@ -307,10 +346,10 @@ export function VisitasDetalleBase({ modo, titulo, descripcion }: Props) {
     {
       titulo: "Cód. cliente",
       ancho: "7rem",
-      valor: (v) => v.rctt_cust ?? "",
+      valor: (v) => codigoCliente(v),
       render: (v) => (
         <code>
-          {v.rctt_cust}
+          {codigoCliente(v)}
           {v.rctt_succli && v.rctt_succli !== "0" ? `-${v.rctt_succli}` : ""}
         </code>
       ),
@@ -372,6 +411,27 @@ export function VisitasDetalleBase({ modo, titulo, descripcion }: Props) {
         "—"
       ),
   });
+
+  // Desde Efectuadas se salta al detalle del mismo cliente sin pasar por el menu.
+  if (modo === "agrupada") {
+    columnas.push({
+      titulo: "Detalle",
+      ancho: "8rem",
+      alineacion: "centro",
+      render: (v) => (
+        <Link
+          to={
+            `/visitas/detalladas?codUsu=${encodeURIComponent(v.rvis_enter || v.rvis_codusu || "")}` +
+            `&fecIni=${filtro.fecIni}&fecFin=${filtro.fecFin}` +
+            `&codCust=${encodeURIComponent(codigoCliente(v))}`
+          }
+          className={estilos.enlaceDetalle}
+        >
+          <IconDetalle /> Detalladas
+        </Link>
+      ),
+    });
+  }
 
   if (modo === "detallada") {
     columnas.push(

@@ -1,8 +1,9 @@
 import type { ReactNode } from "react";
 import {
-  IconBox,
   IconBuilding,
-  IconClipboard,
+  IconResumen,
+  IconEfectuadas,
+  IconDetalle,
   IconGift,
   IconHistory,
   IconIdCard,
@@ -10,7 +11,6 @@ import {
   IconMapPin,
   IconRoute,
   IconShield,
-  IconStore,
   IconTools,
   IconUser,
   IconUsers,
@@ -70,25 +70,24 @@ export const NAVEGACION: NavEntrada[] = [
     label: "Visitas",
     icon: <IconMapPin />,
     modulo: "Visitas",
+    // Un icono distinto por tipo de consulta, para diferenciarlas de un vistazo.
     items: [
-      { label: "Consolidadas", to: "/visitas/consolidadas", icon: <IconClipboard /> },
-      { label: "Efectuadas", to: "/visitas/efectuadas", icon: <IconClipboard /> },
-      { label: "Detalladas", to: "/visitas/detalladas", icon: <IconClipboard /> },
+      { label: "Consolidadas", to: "/visitas/consolidadas", icon: <IconResumen /> },
+      { label: "Efectuadas", to: "/visitas/efectuadas", icon: <IconEfectuadas /> },
+      { label: "Detalladas", to: "/visitas/detalladas", icon: <IconDetalle /> },
     ],
   },
   { tipo: "enlace", label: "Ubicaciones", to: "/ubicaciones", icon: <IconMap />, modulo: "Ubicaciones" },
   { tipo: "enlace", label: "Rutas", to: "/rutas", icon: <IconRoute />, modulo: "Rutas" },
   { tipo: "enlace", label: "Clientes", to: "/clientes", icon: <IconUser />, modulo: "Clientes" },
-  {
-    tipo: "grupo",
-    label: "Mercadeo",
-    icon: <IconStore />,
-    modulo: "Mercadeo",
-    items: [
-      { label: "Entregas POP", to: "/pop/entregas", icon: <IconBox />, modulo: "POP" },
-      { label: "Marcas", to: "/pop/marcas", icon: <IconStore />, modulo: "POP" },
-      { label: "Material", to: "/pop/material", icon: <IconBox />, modulo: "POP" },
-      { label: "Bonificados", to: "/bonificados", icon: <IconGift />, modulo: "POP" },
-    ],
-  },
+  /*
+   * Bonificados sale como enlace suelto y ya no exige el modulo "POP": estaba
+   * anidado bajo Mercadeo > POP, asi que un usuario con permiso de Mercadeo
+   * pero sin POP (p. ej. auditor) no lo veia.
+   *
+   * Entregas POP, Marcas y Material quedan ocultos por decision de producto;
+   * las rutas siguen registradas en App.tsx para poder reactivarlos con solo
+   * devolver estas entradas al menu.
+   */
+  { tipo: "enlace", label: "Bonificados", to: "/bonificados", icon: <IconGift />, modulo: "Mercadeo" },
 ];

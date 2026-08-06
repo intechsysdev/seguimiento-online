@@ -1,4 +1,4 @@
-import { Route, Routes } from "react-router-dom";
+import { Navigate, Route, Routes } from "react-router-dom";
 import { AppShell } from "./components/layout/AppShell";
 import { ProtectedRoute } from "./routes/ProtectedRoute";
 import { AuthProvider } from "./store/AuthContext";
@@ -7,7 +7,7 @@ import { BonificadosProvider } from "./store/BonificadosContext";
 import { LoginPage } from "./pages/account/LoginPage";
 import { ForgotPasswordPage } from "./pages/account/ForgotPasswordPage";
 import { ResetPasswordPage } from "./pages/account/ResetPasswordPage";
-import { ChangePasswordPage } from "./pages/account/ChangePasswordPage";
+
 import {
   ConfirmEmailPage,
   InternalErrorPage,
@@ -17,13 +17,14 @@ import {
 
 import { HomePage } from "./pages/HomePage";
 import { DashboardPage } from "./pages/dashboard/DashboardPage";
+import { PerfilPage } from "./pages/perfil/PerfilPage";
 import { CompaniasPage } from "./pages/seguridad/CompaniasPage";
 import { UsuariosPage } from "./pages/seguridad/UsuariosPage";
 import { UsuarioFormPage } from "./pages/seguridad/UsuarioFormPage";
 import { AsignacionesPage } from "./pages/seguridad/AsignacionesPage";
 import { PermisosPage } from "./pages/seguridad/PermisosPage";
 import { RolesPage } from "./pages/seguridad/RolesPage";
-import { FotoPerfilPage } from "./pages/seguridad/FotoPerfilPage";
+
 import { ApisPage } from "./pages/administracion/ApisPage";
 import { PerfilesPage } from "./pages/administracion/PerfilesPage";
 import { AuditoriaPage } from "./pages/administracion/AuditoriaPage";
@@ -59,8 +60,10 @@ function App() {
             <Route element={<AppShell />}>
               <Route path="/" element={<DashboardPage />} />
               <Route path="/accesos" element={<HomePage />} />
-              <Route path="/cambiar-password" element={<ChangePasswordPage />} />
-              <Route path="/perfil/foto" element={<FotoPerfilPage />} />
+              <Route path="/perfil" element={<PerfilPage />} />
+              {/* Rutas antiguas: ahora todo vive en Mi perfil. */}
+              <Route path="/cambiar-password" element={<Navigate to="/perfil" replace />} />
+              <Route path="/perfil/foto" element={<Navigate to="/perfil" replace />} />
             </Route>
           </Route>
 

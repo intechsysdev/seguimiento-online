@@ -100,6 +100,15 @@ export async function request<T>(path: string, options: RequestOptions = {}): Pr
   const headers: Record<string, string> = { accept: "application/json" };
   if (body !== undefined) headers["Content-Type"] = "application/json";
 
+  /*
+   * POST/PUT sin cuerpo deben viajar igualmente con Content-Length: 0. Sin el,
+   * http.sys rechaza la peticion con 411 Length Required antes de que llegue a
+   * ASP.NET; era lo que rompia Auth/ForgetPassword (recuperar contraseña).
+   * RestSharp lo enviaba siempre, por eso el MVC no tenia el problema.
+   */
+  const necesitaCuerpoVacio =
+    body === undefined && (method === "POST" || method === "PUT");
+
   if (auth) {
     const token = tokenProvider();
     if (token) headers["Authorization"] = `Bearer ${token}`;
@@ -108,7 +117,7 @@ export async function request<T>(path: string, options: RequestOptions = {}): Pr
   const response = await fetch(joinUrl(baseUrl, path), {
     method,
     headers,
-    body: body === undefined ? undefined : JSON.stringify(body),
+    body: body !== undefined ? JSON.stringify(body) : necesitaCuerpoVacio ? "" : undefined,
     signal,
   });
 

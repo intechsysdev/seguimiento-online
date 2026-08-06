@@ -11,8 +11,9 @@ export interface MarcadorMapa {
   titulo: string;
   /** HTML del InfoWindow, como el que armaban las vistas del MVC. */
   detalle?: string;
-  /** Icono de Google: green-dot.png, red-dot.png, etc. */
   color?: "verde" | "rojo" | "azul" | "ambar" | "morado" | "naranja";
+  /** Forma del marcador: distingue el tipo de punto ademas del color. */
+  tipo?: "cliente" | "visita" | "dispositivo" | "extraruta";
   /** Numero de secuencia, para las rutas ordenadas. */
   etiqueta?: string;
 }
@@ -23,6 +24,8 @@ export interface Trazado {
   /** Color de la linea; el MVC usaba naranja para la ruta y rojo para visitas. */
   color?: string;
   grosor?: number;
+  /** Util cuando varias lineas se superponen sobre las mismas calles. */
+  opacidad?: number;
 }
 
 interface MapaProps {
@@ -35,14 +38,40 @@ interface MapaProps {
   centro?: { lat: number; lng: number };
 }
 
-const ICONOS: Record<NonNullable<MarcadorMapa["color"]>, string> = {
-  verde: "https://maps.google.com/mapfiles/ms/icons/green-dot.png",
-  rojo: "https://maps.google.com/mapfiles/ms/icons/red-dot.png",
-  azul: "https://maps.google.com/mapfiles/ms/icons/blue-dot.png",
-  ambar: "https://maps.google.com/mapfiles/ms/icons/yellow-dot.png",
-  morado: "https://maps.google.com/mapfiles/ms/icons/purple-dot.png",
-  naranja: "https://maps.google.com/mapfiles/ms/icons/orange-dot.png",
+const COLORES: Record<NonNullable<MarcadorMapa["color"]>, string> = {
+  verde: "#2e9e4f",
+  rojo: "#d93025",
+  azul: "#1a73e8",
+  ambar: "#e8871a",
+  morado: "#8430ce",
+  naranja: "#f57c00",
 };
+
+/**
+ * Iconos por tipo de punto, en SVG embebido (data URI) para no depender de los
+ * `*-dot.png` genericos de Google: asi el dispositivo, el cliente, la visita y
+ * la extraruta se distinguen por forma ademas de por color.
+ */
+const FORMAS: Record<NonNullable<MarcadorMapa["tipo"]>, string> = {
+  // Pin clasico: la ubicacion del cliente.
+  cliente:
+    "M14 2c-5 0-9 4-9 9 0 6.5 9 17 9 17s9-10.5 9-17c0-5-4-9-9-9Zm0 12.5a3.5 3.5 0 1 1 0-7 3.5 3.5 0 0 1 0 7Z",
+  // Rombo: el punto donde se registro la visita.
+  visita: "M14 2 26 14 14 26 2 14Z",
+  // Telefono: la posicion del dispositivo.
+  dispositivo:
+    "M9 2h10a3 3 0 0 1 3 3v18a3 3 0 0 1-3 3H9a3 3 0 0 1-3-3V5a3 3 0 0 1 3-3Zm2 20h6v2h-6v-2Z",
+  // Estrella: visita fuera de la ruta planificada.
+  extraruta: "M14 2l3.6 7.6 8.4 1.1-6.1 5.8 1.5 8.3L14 20.9 6.6 24.8l1.5-8.3L2 10.7l8.4-1.1Z",
+};
+
+function iconoSvg(tipo: NonNullable<MarcadorMapa["tipo"]>, color: string) {
+  const svg =
+    `<svg xmlns="http://www.w3.org/2000/svg" width="30" height="30" viewBox="0 0 28 30">` +
+    `<path d="${FORMAS[tipo]}" fill="${color}" stroke="#ffffff" stroke-width="1.8" stroke-linejoin="round"/>` +
+    `</svg>`;
+  return `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(svg)}`;
+}
 
 /**
  * Directions acepta como maximo 25 paradas por peticion (23 waypoints + origen
@@ -61,6 +90,41 @@ function partirEnTramos<T>(puntos: T[]): T[][] {
   return tramos.filter((tramo) => tramo.length >= 2);
 }
 
+/**
+ * Directions limita las peticiones por segundo. Lanzando todos los tramos a la
+ * vez (varias capas x varios tramos) Google responde OVER_QUERY_LIMIT y esas
+ * lineas simplemente no se dibujaban: por eso no se veian a la vez el
+ * recorrido del dispositivo, el de las visitas y el de la ruta.
+ *
+ * Se encolan de a una, con espera entre peticiones y reintento con espera
+ * creciente cuando el limite se alcanza igual.
+ */
+const ESPERA_MS = 180;
+const MAX_REINTENTOS = 4;
+
+function pedirRuta(
+  servicio: google.maps.DirectionsService,
+  peticion: Record<string, unknown>,
+  intento = 0,
+): Promise<google.maps.DirectionsResult | null> {
+  return new Promise((resolver) => {
+    servicio.route(peticion, (respuesta, estado) => {
+      if (estado === "OK" && respuesta) {
+        resolver(respuesta);
+        return;
+      }
+      if (estado === "OVER_QUERY_LIMIT" && intento < MAX_REINTENTOS) {
+        setTimeout(
+          () => pedirRuta(servicio, peticion, intento + 1).then(resolver),
+          400 * 2 ** intento,
+        );
+        return;
+      }
+      resolver(null);
+    });
+  });
+}
+
 export function Mapa({
   apiKey,
   marcadores,
@@ -73,6 +137,8 @@ export function Mapa({
   const servicio = useRef<google.maps.DirectionsService | null>(null);
   const dibujados = useRef<google.maps.Marker[]>([]);
   const renderers = useRef<google.maps.DirectionsRenderer[]>([]);
+  /** Identifica la tanda de dibujo en curso para descartar respuestas viejas. */
+  const generacionActual = useRef(0);
   const infoWindow = useRef<google.maps.InfoWindow | null>(null);
 
   const [listo, setListo] = useState(false);
@@ -116,12 +182,15 @@ export function Mapa({
 
     marcadores.forEach((item) => {
       const posicion = { lat: item.lat, lng: item.lng };
+      const color = COLORES[item.color ?? "azul"];
       const marcador = new gmaps.Marker({
         position: posicion,
         map: mapa.current,
         title: item.titulo,
-        icon: item.color ? { url: ICONOS[item.color] } : undefined,
-        label: item.etiqueta ? { text: item.etiqueta, color: "#fff", fontSize: "11px" } : undefined,
+        icon: item.tipo ? { url: iconoSvg(item.tipo, color) } : undefined,
+        label: item.etiqueta
+          ? { text: item.etiqueta, color: "#ffffff", fontSize: "10px", fontWeight: "700" }
+          : undefined,
       });
 
       if (item.detalle) {
@@ -146,44 +215,50 @@ export function Mapa({
       mapa.current.setZoom(11);
     }
 
-    // Ruta por calles, tramo a tramo.
-    trazados?.forEach((trazado) => {
-      partirEnTramos(trazado.puntos).forEach((tramo) => {
-        const origen = tramo[0];
-        const destino = tramo[tramo.length - 1];
-        const waypoints = tramo.slice(1, -1).map((punto) => ({
-          location: `${punto.lat} ${punto.lng}`,
-          stopover: false,
-        }));
+    // Ruta por calles, tramo a tramo y en cola para no exceder el limite.
+    const generacion = ++generacionActual.current;
 
-        servicio.current!.route(
-          {
+    (async () => {
+      for (const trazado of trazados ?? []) {
+        for (const tramo of partirEnTramos(trazado.puntos)) {
+          // Si el mapa se redibujo mientras tanto, se abandona esta tanda.
+          if (generacion !== generacionActual.current) return;
+
+          const origen = tramo[0];
+          const destino = tramo[tramo.length - 1];
+          const waypoints = tramo.slice(1, -1).map((punto) => ({
+            location: `${punto.lat} ${punto.lng}`,
+            stopover: false,
+          }));
+
+          const respuesta = await pedirRuta(servicio.current!, {
             origin: `${origen.lat} ${origen.lng}`,
             destination: `${destino.lat} ${destino.lng}`,
             waypoints,
             travelMode: "WALKING",
-          },
-          (respuesta, estado) => {
-            // El MVC ignoraba los fallos (p. ej. OVER_QUERY_LIMIT) en silencio.
-            if (estado !== "OK" || !respuesta || !mapa.current) return;
+          });
 
-            const renderer = new gmaps.DirectionsRenderer();
-            renderer.setMap(mapa.current);
-            renderer.setOptions({
-              suppressMarkers: true,
-              preserveViewport: true,
-              polylineOptions: {
-                // Azul primario de la app movil (colors.dart: primaryColor).
-                strokeColor: trazado.color ?? "#0377e3",
-                strokeWeight: trazado.grosor ?? 4,
-              },
-            });
-            renderer.setDirections(respuesta);
-            renderers.current.push(renderer);
-          },
-        );
-      });
-    });
+          if (generacion !== generacionActual.current || !respuesta || !mapa.current) continue;
+
+          const renderer = new gmaps.DirectionsRenderer();
+          renderer.setMap(mapa.current);
+          renderer.setOptions({
+            suppressMarkers: true,
+            preserveViewport: true,
+            polylineOptions: {
+              // Azul primario de la app movil (colors.dart: primaryColor).
+              strokeColor: trazado.color ?? "#0377e3",
+              strokeWeight: trazado.grosor ?? 4,
+              strokeOpacity: trazado.opacidad ?? 0.9,
+            },
+          });
+          renderer.setDirections(respuesta);
+          renderers.current.push(renderer);
+
+          await new Promise((r) => setTimeout(r, ESPERA_MS));
+        }
+      }
+    })();
   }, [listo, marcadores, trazados, centro]);
 
   if (error) return <Alert tone="warning">{error}</Alert>;

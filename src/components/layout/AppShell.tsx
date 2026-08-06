@@ -88,7 +88,7 @@ export function AppShell() {
 
         {/* Tarjeta de usuario: equivale al user-card del _Layout del MVC. */}
         {session ? (
-          <Link to="/perfil/foto" className={styles.usuarioCard}>
+          <Link to="/perfil" className={styles.usuarioCard}>
             <Avatar email={session.username} nombre={session.username} size={38} />
             <span className={styles.usuarioDatos}>
               <span className={styles.usuarioNombre}>{session.username}</span>
@@ -220,7 +220,7 @@ export function AppShell() {
               <Avatar email={session?.username} nombre={session?.username} size={30} />
             </span>
 
-            <Link to="/cambiar-password" className={styles.iconBtn} aria-label="Cambiar contraseña">
+            <Link to="/perfil" className={styles.iconBtn} aria-label="Mi perfil">
               <IconLock />
             </Link>
 
