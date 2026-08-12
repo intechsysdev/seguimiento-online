@@ -634,7 +634,13 @@ export function VisitasDetalleBase({ modo, titulo, descripcion }: Props) {
         <Spinner mensaje="Consultando visitas…" />
       ) : (
         <>
-          {google.apiKey && (marcadores.length > 0 || trazados.length > 0) ? (
+          {/*
+            La condicion mira los datos, NO las capas activas: si dependiera de
+            `marcadores`, al desmarcar las tres casillas desaparecia el bloque
+            entero —casillas incluidas— y no habia forma de volver a activarlas
+            sin recargar la pagina.
+          */}
+          {google.apiKey && (visitas.datos?.length ?? 0) > 0 ? (
             <>
               {/* Capas del mapa: los tres checks del modal del MVC. */}
               <div className={estilos.capas}>
@@ -670,12 +676,18 @@ export function VisitasDetalleBase({ modo, titulo, descripcion }: Props) {
                 ) : null}
               </div>
 
-              <Mapa
-                apiKey={google.apiKey}
-                marcadores={marcadores}
-                trazados={trazados}
-                altura="28rem"
-              />
+              {marcadores.length > 0 || trazados.length > 0 ? (
+                <Mapa
+                  apiKey={google.apiKey}
+                  marcadores={marcadores}
+                  trazados={trazados}
+                  altura="28rem"
+                />
+              ) : (
+                <p className={estilos.sinCapas}>
+                  Activa al menos una capa para ver el mapa.
+                </p>
+              )}
             </>
           ) : null}
 

@@ -582,12 +582,18 @@ export function RutasPage() {
                 </label>
               </div>
 
-              <Mapa
-                apiKey={google.apiKey}
-                marcadores={marcadores}
-                trazados={trazados}
-                altura="30rem"
-              />
+              {/* Con todas las capas apagadas se avisa, en vez de dejar un mapa
+                  vacio: las casillas siguen visibles para reactivarlas. */}
+              {marcadores.length > 0 || trazados.length > 0 ? (
+                <Mapa
+                  apiKey={google.apiKey}
+                  marcadores={marcadores}
+                  trazados={trazados}
+                  altura="30rem"
+                />
+              ) : (
+                <p className={estilos.sinCapas}>Activa al menos una capa para ver el mapa.</p>
+              )}
             </>
           ) : null}
 
