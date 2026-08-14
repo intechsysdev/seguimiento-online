@@ -128,3 +128,18 @@
   color: var(--color-ink-muted);
   line-height: 1.35;
 }
+
+/**
+ * Celda que abre con el icono del tipo de punto (dispositivo, visita, cliente,
+ * extraruta) antes del texto. El icono se alinea con la primera linea, no al
+ * centro del bloque, para que no baile cuando la celda lleva dos renglones.
+ */
+.conIcono {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-2);
+}
+
+.conIcono > :first-child {
+  margin-top: 0.15em;
+}

@@ -9,8 +9,11 @@ import { MultiSelect } from "../../components/ui/MultiSelect";
 import { ProgressBar } from "../../components/ui/ProgressBar";
 import { Spinner } from "../../components/ui/Spinner";
 import { Mapa, type MarcadorMapa, type Trazado } from "../../components/mapa/Mapa";
+import { IconoPunto } from "../../components/mapa/IconoPunto";
+import { colorEstado } from "../../components/mapa/tiposPunto";
 import { useGoogleMapsKey } from "../../hooks/useAppConfig";
 import { useDashboard } from "./useDashboard";
+import { esCoordenada } from "../../utils/geo";
 import { formatDateTime, hoyISO } from "../../utils/dates";
 import inputs from "../../components/ui/inputs.module.css";
 import formularios from "../seguridad/Formularios.module.css";
@@ -48,10 +51,11 @@ export function DashboardPage() {
     // Clientes de la ruta: verde si se visitaron, rojo si quedaron pendientes.
     const visitados = new Set(resumen.visitas.map((v) => `${v.rvis_cust}|${v.rctt_succli}`));
     resumen.rutas
-      .filter((r) => Number(r.rctt_latitud) && Number(r.rctt_longitud))
+      .filter((r) => esCoordenada(r.rctt_latitud, r.rctt_longitud))
       .forEach((r) =>
         lista.push({
           id: `plan-${r.rruta_cus}-${r.rruta_succli}`,
+          tipo: "cliente",
           lat: Number(r.rctt_latitud),
           lng: Number(r.rctt_longitud),
           titulo: r.rctt_nomcli || r.rctt_razsoc,
@@ -61,10 +65,11 @@ export function DashboardPage() {
       );
 
     resumen.extrarutas
-      .filter((v) => Number(v.rvis_latitud) && Number(v.rvis_longitud))
+      .filter((v) => esCoordenada(v.rvis_latitud, v.rvis_longitud))
       .forEach((v, i) =>
         lista.push({
           id: `extra-${v.rvis_cust}-${i}`,
+          tipo: "extraruta",
           lat: Number(v.rvis_latitud),
           lng: Number(v.rvis_longitud),
           titulo: `Extraruta · ${v.rctt_nomcli || v.rctt_razsoc}`,
@@ -79,10 +84,11 @@ export function DashboardPage() {
       .forEach((f) =>
         lista.push({
           id: `disp-${f.codusu}`,
+          tipo: "dispositivo",
           lat: f.lat!,
           lng: f.lng!,
           titulo: `${f.nombre} (${f.codusu})`,
-          color: f.enLinea ? "azul" : "ambar",
+          color: colorEstado(f.enLinea),
           detalle: `<strong>${f.nombre}</strong><br/>${f.enLinea ? "En línea" : "Desconectado"}`,
         }),
       );
@@ -92,7 +98,7 @@ export function DashboardPage() {
 
   const trazados: Trazado[] = useMemo(() => {
     const plan = resumen.rutas
-      .filter((r) => Number(r.rctt_latitud) && Number(r.rctt_longitud))
+      .filter((r) => esCoordenada(r.rctt_latitud, r.rctt_longitud))
       .map((r) => ({ lat: Number(r.rctt_latitud), lng: Number(r.rctt_longitud) }));
     return plan.length >= 2 ? [{ puntos: plan, color: "orange", grosor: 3 }] : [];
   }, [resumen.rutas]);
@@ -199,10 +205,10 @@ export function DashboardPage() {
               <header className={estilos.panelHead}>
                 <h3>Mapa de geolocalización</h3>
                 <span className={estilos.leyenda}>
-                  <span className={estilos.pVerde} /> visitado
-                  <span className={estilos.pRojo} /> pendiente
-                  <span className={estilos.pMorado} /> extraruta
-                  <span className={estilos.pAzul} /> dispositivo
+                  <IconoPunto tipo="cliente" color="verde" /> visitado
+                  <IconoPunto tipo="cliente" color="rojo" /> pendiente
+                  <IconoPunto tipo="extraruta" color="morado" /> extraruta
+                  <IconoPunto tipo="dispositivo" color="azul" /> dispositivo
                 </span>
               </header>
               {google.apiKey && marcadores.length ? (

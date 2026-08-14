@@ -1,0 +1,240 @@
+.escena {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.mapa {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+
+/*
+  En pantallas angostas el recorte de `slice` deja a la vista solo la franja
+  central del lienzo, justo la que tapa la tarjeta. Correr el contenido hacia
+  la derecha trae al encuadre el tramo con las primeras visitas.
+*/
+@media (max-width: 720px) {
+  .lienzo {
+    transform: translateX(470px);
+  }
+}
+
+/*
+  El mapa se apaga hacia el centro, que es donde va la tarjeta de acceso: asi
+  el fondo se ve completo en los bordes sin restarle contraste al formulario.
+*/
+.velo {
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(
+    34% 46% at 50% 46%,
+    color-mix(in srgb, var(--color-bg) 88%, transparent) 0%,
+    color-mix(in srgb, var(--color-bg) 52%, transparent) 55%,
+    transparent 100%
+  );
+}
+
+/* --- Plano --- */
+
+.rejilla {
+  color: var(--color-border-strong);
+  opacity: 0.38;
+}
+
+.arterias {
+  color: var(--color-border-strong);
+  opacity: 0.45;
+}
+
+.manzanas rect {
+  fill: var(--color-surface);
+  opacity: 0.6;
+}
+
+/* Reborde + asfalto: dos trazos superpuestos, como en cualquier cartografia. */
+.avenidas path {
+  fill: none;
+  stroke-linecap: round;
+}
+
+.avenidaBorde {
+  stroke: var(--color-border-strong);
+  stroke-width: 16;
+  opacity: 0.38;
+}
+
+.avenidaAsfalto {
+  stroke: var(--color-surface);
+  stroke-width: 12;
+  opacity: 0.85;
+}
+
+/* Segundo asesor: se lee como otra ruta seguida, no como una calle mas. */
+.secundaria {
+  opacity: 0.26;
+}
+
+.secundaria circle {
+  fill: var(--color-accent);
+}
+
+.trazaSecundaria {
+  fill: none;
+  stroke: var(--color-accent);
+  stroke-width: 4;
+  stroke-linecap: round;
+}
+
+/* --- Radio de la visita presencial --- */
+
+.geoRelleno {
+  fill: var(--color-accent);
+  opacity: 0.08;
+}
+
+.geoBorde {
+  fill: none;
+  stroke: var(--color-accent);
+  stroke-width: 2;
+  stroke-dasharray: 6 11;
+  opacity: 0.5;
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: girar 30s linear infinite;
+}
+
+@keyframes girar {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* --- Ruta planificada vs. traza GPS --- */
+
+.plan {
+  fill: none;
+  stroke: var(--color-ink-faint);
+  stroke-width: 3;
+  stroke-linecap: round;
+  stroke-dasharray: 10 13;
+  opacity: 0.55;
+}
+
+.traza {
+  fill: none;
+  stroke: url(#so-traza);
+  stroke-width: 6;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-dasharray: 2600;
+  stroke-dashoffset: 2600;
+  animation: dibujar 2.6s cubic-bezier(0.22, 0.61, 0.36, 1) 0.2s forwards;
+}
+
+@keyframes dibujar {
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+.trazaIni {
+  stop-color: var(--color-accent);
+  stop-opacity: 0.25;
+}
+
+.trazaMed {
+  stop-color: var(--color-accent);
+  stop-opacity: 0.6;
+}
+
+.trazaFin {
+  stop-color: var(--color-accent-strong);
+  stop-opacity: 0.9;
+}
+
+/* --- Visitas del dia --- */
+
+.visitas {
+  opacity: 0.92;
+}
+
+/* Anillo del color del fondo: separa el pin de la traza que pasa por debajo. */
+.pinHalo {
+  fill: var(--color-bg);
+  opacity: 0.9;
+}
+
+.pinHecha {
+  fill: var(--color-success);
+}
+
+.pinPendiente {
+  fill: var(--color-surface);
+  stroke: var(--color-accent);
+  stroke-width: 3;
+}
+
+.numero {
+  font-family: var(--font-body);
+  font-size: 21px;
+  font-weight: 700;
+  text-anchor: middle;
+  dominant-baseline: central;
+}
+
+.numeroHecha {
+  fill: var(--color-accent-contrast);
+}
+
+.numeroPendiente {
+  fill: var(--color-accent);
+}
+
+/* --- Posicion actual --- */
+
+.pulso {
+  fill: var(--color-accent);
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: latir 2.8s ease-out 1.6s infinite;
+}
+
+@keyframes latir {
+  0% {
+    transform: scale(0.3);
+    opacity: 0.5;
+  }
+  70%,
+  100% {
+    transform: scale(1);
+    opacity: 0;
+  }
+}
+
+.puntoBorde {
+  fill: var(--color-surface);
+}
+
+.punto {
+  fill: var(--color-accent-strong);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .traza {
+    animation: none;
+    stroke-dashoffset: 0;
+  }
+
+  .geoBorde,
+  .pulso {
+    animation: none;
+  }
+
+  .pulso {
+    opacity: 0.16;
+  }
+}

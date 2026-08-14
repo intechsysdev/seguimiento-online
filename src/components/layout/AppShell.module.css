@@ -106,14 +106,13 @@
 
 /* Copyright y version, siempre visibles dentro del aplicativo. */
 .pieLateral {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
   padding: var(--space-3) var(--space-4) var(--space-4);
   border-top: 1px solid var(--color-border);
-  font-size: var(--text-xs);
-  color: var(--color-ink-faint);
-  line-height: 1.4;
+}
+
+/* Solo aparece cuando el sidebar deja de estar a la vista (ver media query). */
+.pieMovil {
+  display: none;
 }
 
 .grupo ul {
@@ -388,5 +387,11 @@
 
   .main {
     padding: var(--space-5) var(--space-4);
+  }
+
+  .pieMovil {
+    display: block;
+    padding: var(--space-4);
+    border-top: 1px solid var(--color-border);
   }
 }

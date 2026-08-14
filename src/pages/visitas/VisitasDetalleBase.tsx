@@ -9,15 +9,18 @@ import { Spinner } from "../../components/ui/Spinner";
 import { Modal } from "../../components/ui/Modal";
 import { DataTable, type Columna } from "../../components/ui/DataTable";
 import { MultiSelect } from "../../components/ui/MultiSelect";
-import { IconDetalle, IconMap } from "../../components/icons";
+import { IconDetalle } from "../../components/icons";
 import { Mapa, type MarcadorMapa, type Trazado } from "../../components/mapa/Mapa";
+import { IconoPunto } from "../../components/mapa/IconoPunto";
 import { useApi } from "../../hooks/useApi";
 import { useGoogleMapsKey, useMobiControl } from "../../hooks/useAppConfig";
 import { useUsuariosAsignados } from "../../hooks/useUsuariosAsignados";
 import { catalogosEvaService } from "../../services/eva/catalogosEvaService";
 import { visitasEvaService } from "../../services/eva/visitasEvaService";
 import { mobicontrolService } from "../../services/mobicontrolService";
-import { aFormatoApi, hoyISO } from "../../utils/dates";
+import { esCoordenada } from "../../utils/geo";
+import { aFormatoApi, formatFechaVisita, hoyISO, ordenFechaVisita } from "../../utils/dates";
+import { indexarMovimientos, normalizarCodigo } from "../../utils/movimientos";
 import type { FiltersDetalle, MobVisitaDto, MobVisitaGrupoDto } from "../../types/eva";
 import inputs from "../../components/ui/inputs.module.css";
 import formularios from "../seguridad/Formularios.module.css";
@@ -167,28 +170,36 @@ export function VisitasDetalleBase({ modo, titulo, descripcion }: Props) {
     if (modo === "detallada") return visitasEvaService.getListCompuesto(tenant, filtroApi);
 
     /*
-     * El endpoint agrupado NO devuelve `Movimientos`: el MVC lo armaba pidiendo
-     * ademas el detalle y uniendo los `docvis_desc` de cada cliente
-     * (RutasController). Sin esta segunda consulta la columna sale vacia.
+     * El endpoint agrupado NO devuelve nada de movimientos: SummaryGroup del
+     * MVC solo numeraba las filas (VisitasController.SummaryGroup), y donde si
+     * los armaba (RutasController) unia los `docvis_desc` distintos del
+     * detalle. De ahi la segunda consulta: sin ella la columna sale vacia.
+     *
+     * Ademas del tipo de documento se cuenta cuantos movimientos hubo en cada
+     * cliente, que es lo que no se veia por ningun lado.
+     *
+     * El cruce va por cliente + sucursal, igual que el MVC. Si un cliente se
+     * visita dos veces el mismo dia, las dos filas muestran el total del
+     * cliente: es la misma aproximacion que ya tenia la lista de tipos, asi el
+     * conteo y los tipos no se contradicen entre si.
      */
     return Promise.all([
       visitasEvaService.getListCompuestoGroup(tenant, filtroApi),
-      visitasEvaService.getListCompuesto(tenant, filtroApi).catch(() => [] as MobVisitaDto[]),
+      // null (no []) para distinguir "sin movimientos" de "no se pudo consultar".
+      visitasEvaService.getListCompuesto(tenant, filtroApi).catch(() => null),
     ]).then(([grupos, detalle]) => {
-      const porCliente = new Map<string, Set<string>>();
-      (detalle ?? []).forEach((d) => {
-        if (!d.docvis_desc) return;
-        const clave = `${d.rctt_cust}|${d.rctt_succli}`;
-        if (!porCliente.has(clave)) porCliente.set(clave, new Set());
-        porCliente.get(clave)!.add(d.docvis_desc);
-      });
+      const buscarMovimientos = indexarMovimientos(detalle);
 
-      return (grupos ?? []).map((g) => ({
-        ...g,
-        Movimientos:
-          g.Movimientos ||
-          [...(porCliente.get(`${g.rvis_cust}|${g.rctt_succli}`) ?? [])].join(", "),
-      }));
+      return (grupos ?? []).map((g) => {
+        // El agrupado trae el cliente en rvis_cust; rctt_cust queda vacio.
+        const movimientos = buscarMovimientos(g.rvis_cust || g.rctt_cust, g.rctt_succli);
+
+        return {
+          ...g,
+          Movimientos: g.Movimientos || [...(movimientos?.tipos ?? [])].join(", "),
+          CantMovimientos: detalle ? (movimientos?.cantidad ?? 0) : undefined,
+        };
+      });
     });
   }, [tenant?.IDTenant, filtro, codigosAsignados, cargandoUsuarios, modo]);
 
@@ -220,15 +231,30 @@ export function VisitasDetalleBase({ modo, titulo, descripcion }: Props) {
    */
   function codigoCliente(v: Fila) {
     const grupo = v as MobVisitaGrupoDto;
-    return grupo.rvis_cust || v.rctt_cust || "";
+    return normalizarCodigo(grupo.rvis_cust) || normalizarCodigo(v.rctt_cust);
+  }
+
+  /**
+   * Subtitulo de la ficha de una visita. Se arma con las partes que la fila
+   * trae de verdad: en el agrupado faltan campos, y concatenarlos a ciegas
+   * imprimia "undefined" y separadores sueltos.
+   */
+  function descripcionVisita(v: Fila) {
+    const horario = [v.rvis_horinivis, v.rvis_horfinvis].filter(Boolean).join(" — ");
+    return [codigoCliente(v), formatFechaVisita(v.rvis_fecvis), horario].filter(Boolean).join(" · ");
   }
 
   function detalleHtml(v: Fila) {
+    const cliente = [codigoCliente(v), v.rctt_addr].filter(Boolean).join(" · ");
+    const funcionario = [v.rusu_nombre, v.rvis_enter || v.rvis_codusu]
+      .filter(Boolean)
+      .join(" · ");
+    const tiempo = v.tiempoVis ? ` (${v.tiempoVis})` : "";
     return (
       `<strong>${v.rctt_nomcli || v.rctt_razsoc}</strong><br/>` +
-      `${v.rctt_cust ?? ""} · ${v.rctt_addr ?? ""}<br/>` +
-      `${v.rusu_nombre ?? ""} (${v.rvis_enter || v.rvis_codusu || ""})<br/>` +
-      `${v.rvis_fecvis ?? ""} ${v.rvis_horinivis ?? ""} - ${v.rvis_horfinvis ?? ""} (${v.tiempoVis ?? ""})`
+      (cliente ? `${cliente}<br/>` : "") +
+      (funcionario ? `${funcionario}<br/>` : "") +
+      `${descripcionVisita(v)}${tiempo}`
     );
   }
 
@@ -243,10 +269,10 @@ export function VisitasDetalleBase({ modo, titulo, descripcion }: Props) {
 
     if (capas.visita) {
       datos
-        .filter((v) => Number(v.rvis_latitud) && Number(v.rvis_longitud))
+        .filter((v) => esCoordenada(v.rvis_latitud, v.rvis_longitud))
         .forEach((v, indice) =>
           lista.push({
-            id: `vis-${v.rctt_cust}-${v.rctt_succli}-${indice}`,
+            id: `vis-${codigoCliente(v)}-${v.rctt_succli}-${indice}`,
             tipo: "visita" as const,
             lat: Number(v.rvis_latitud),
             lng: Number(v.rvis_longitud),
@@ -260,10 +286,10 @@ export function VisitasDetalleBase({ modo, titulo, descripcion }: Props) {
 
     if (capas.cliente) {
       datos
-        .filter((v) => Number(v.rctt_latitud) && Number(v.rctt_longitud))
+        .filter((v) => esCoordenada(v.rctt_latitud, v.rctt_longitud))
         .forEach((v, indice) =>
           lista.push({
-            id: `cli-${v.rctt_cust}-${v.rctt_succli}-${indice}`,
+            id: `cli-${codigoCliente(v)}-${v.rctt_succli}-${indice}`,
             tipo: "cliente" as const,
             lat: Number(v.rctt_latitud),
             lng: Number(v.rctt_longitud),
@@ -274,15 +300,36 @@ export function VisitasDetalleBase({ modo, titulo, descripcion }: Props) {
         );
     }
 
+    /*
+      La capa Dispositivo dibujaba solo la linea del GPS, sin ningun punto: se
+      marca la ultima posicion con el icono Dispositivo para que el tipo se
+      reconozca tambien en el mapa.
+    */
+    if (capas.dispositivo) {
+      const gps = recorrido.datos ?? [];
+      const ultima = gps[gps.length - 1];
+      if (ultima) {
+        lista.push({
+          id: "dispositivo",
+          tipo: "dispositivo" as const,
+          lat: ultima.lat,
+          lng: ultima.lng,
+          titulo: "Última posición del dispositivo",
+          color: "azul",
+          detalle: "<strong>Dispositivo</strong><br/>Última posición del recorrido GPS",
+        });
+      }
+    }
+
     return lista;
-  }, [visitas.datos, capas]);
+  }, [visitas.datos, recorrido.datos, capas]);
 
   const trazados: Trazado[] = useMemo(() => {
     const lista: Trazado[] = [];
 
     if (capas.visita) {
       const puntos = (visitas.datos ?? [])
-        .filter((v) => Number(v.rvis_latitud) && Number(v.rvis_longitud))
+        .filter((v) => esCoordenada(v.rvis_latitud, v.rvis_longitud))
         .map((v) => ({ lat: Number(v.rvis_latitud), lng: Number(v.rvis_longitud) }));
       if (puntos.length >= 2) lista.push({ puntos, color: "red", grosor: 4 });
     }
@@ -299,7 +346,7 @@ export function VisitasDetalleBase({ modo, titulo, descripcion }: Props) {
   const marcadoresFila: MarcadorMapa[] = useMemo(() => {
     if (!visitaEnMapa) return [];
     const lista: MarcadorMapa[] = [];
-    if (Number(visitaEnMapa.rctt_latitud) && Number(visitaEnMapa.rctt_longitud)) {
+    if (esCoordenada(visitaEnMapa.rctt_latitud, visitaEnMapa.rctt_longitud)) {
       lista.push({
         id: "cliente",
         tipo: "cliente" as const,
@@ -310,7 +357,7 @@ export function VisitasDetalleBase({ modo, titulo, descripcion }: Props) {
         detalle: `<strong>Cliente</strong><br/>${visitaEnMapa.rctt_addr ?? ""}`,
       });
     }
-    if (Number(visitaEnMapa.rvis_latitud) && Number(visitaEnMapa.rvis_longitud)) {
+    if (esCoordenada(visitaEnMapa.rvis_latitud, visitaEnMapa.rvis_longitud)) {
       lista.push({
         id: "visita",
         tipo: "visita" as const,
@@ -324,11 +371,71 @@ export function VisitasDetalleBase({ modo, titulo, descripcion }: Props) {
     return lista;
   }, [visitaEnMapa]);
 
+  /**
+   * La consulta del detalle fallo: `CantMovimientos` queda sin definir en todas
+   * las filas. Se distingue de "no hubo movimientos", que llega como 0.
+   */
+  const sinMovimientos =
+    modo === "agrupada" &&
+    (visitas.datos?.length ?? 0) > 0 &&
+    (visitas.datos ?? []).every(
+      (v) => (v as MobVisitaGrupoDto).CantMovimientos === undefined,
+    );
+
   const columnas: Columna<Fila>[] = [
+    /*
+      Las acciones de la fila abren la tabla y quedan ancladas al borde
+      izquierdo. Al final de una tabla de hasta 15 columnas obligaban a
+      desplazarse hasta el extremo en cada fila para abrir el mapa o saltar al
+      detalle; asi estan siempre a la vista.
+    */
+    {
+      titulo: "Ver",
+      fija: "izquierda",
+      render: (v) => {
+        const conUbicacion = Boolean(Number(v.rvis_latitud) || Number(v.rctt_latitud));
+        return (
+          <div className={estilos.accionesFila}>
+            {conUbicacion ? (
+              <button
+                type="button"
+                className={estilos.accion}
+                onClick={() => setVisitaEnMapa(v)}
+                title="Ubicación de la visita y del cliente en el mapa."
+                aria-label={`Mapa de la visita a ${v.rctt_nomcli || v.rctt_razsoc}`}
+              >
+                <IconoPunto tipo="visita" color="rojo" /> Mapa
+              </button>
+            ) : (
+              <span className={estilos.accionVacia} title="La visita no tiene coordenadas.">
+                —
+              </span>
+            )}
+
+            {/* Desde Efectuadas se salta al detalle del mismo cliente sin
+                pasar por el menu lateral. */}
+            {modo === "agrupada" ? (
+              <Link
+                to={
+                  `/visitas/detalladas?codUsu=${encodeURIComponent(v.rvis_enter || v.rvis_codusu || "")}` +
+                  `&fecIni=${filtro.fecIni}&fecFin=${filtro.fecFin}` +
+                  `&codCust=${encodeURIComponent(codigoCliente(v))}`
+                }
+                className={estilos.accion}
+                title="Detalladas: una fila por movimiento, con medio, motivo y acción."
+                aria-label={`Visitas detalladas de ${v.rctt_nomcli || v.rctt_razsoc}`}
+              >
+                <IconDetalle /> Detalladas
+              </Link>
+            ) : null}
+          </div>
+        );
+      },
+    },
     {
       titulo: "Fecha",
-      valor: (v) => v.rvis_fecvis,
-      render: (v) => v.rvis_fecvis,
+      valor: (v) => ordenFechaVisita(v.rvis_fecvis),
+      render: (v) => formatFechaVisita(v.rvis_fecvis),
       ancho: "8rem",
     },
     // El MVC mostraba rvis_enter como primera columna ("Usuario").
@@ -357,10 +464,14 @@ export function VisitasDetalleBase({ modo, titulo, descripcion }: Props) {
     {
       titulo: "Cliente",
       valor: (v) => v.rctt_nomcli || v.rctt_razsoc,
+      // Mismo icono verde que marca al cliente en el mapa.
       render: (v) => (
-        <div>
-          {v.rctt_nomcli || v.rctt_razsoc}
-          {v.rctt_addr ? <div className={formularios.sub}>{v.rctt_addr}</div> : null}
+        <div className={formularios.conIcono}>
+          <IconoPunto tipo="cliente" color="verde" />
+          <span>
+            {v.rctt_nomcli || v.rctt_razsoc}
+            {v.rctt_addr ? <div className={formularios.sub}>{v.rctt_addr}</div> : null}
+          </span>
         </div>
       ),
     },
@@ -386,9 +497,20 @@ export function VisitasDetalleBase({ modo, titulo, descripcion }: Props) {
     },
     modo === "agrupada"
       ? {
-          titulo: "Movimientos",
-          valor: (v) => (v as MobVisitaGrupoDto).Movimientos ?? "",
-          render: (v) => (v as MobVisitaGrupoDto).Movimientos || "—",
+          /*
+            Cuantos movimientos hubo en el cliente. Va en columna propia (y no
+            solo dentro del texto de Movimientos) para poder ordenar por el
+            numero y para que salga como numero en la exportacion.
+          */
+          titulo: "# Mov.",
+          ancho: "6rem",
+          alineacion: "derecha",
+          valor: (v) => (v as MobVisitaGrupoDto).CantMovimientos ?? "",
+          render: (v) => {
+            const cantidad = (v as MobVisitaGrupoDto).CantMovimientos;
+            if (cantidad === undefined) return "—";
+            return <Badge tone={cantidad > 0 ? "accent" : "neutral"}>{cantidad}</Badge>;
+          },
         }
       : {
           titulo: "Documento",
@@ -397,39 +519,12 @@ export function VisitasDetalleBase({ modo, titulo, descripcion }: Props) {
         },
   ];
 
-  // Boton por fila: abre el mapa centrado en esa visita, como ConsultarDetalle().
-  columnas.push({
-    titulo: "Ubicación",
-    ancho: "7rem",
-    alineacion: "centro",
-    render: (v) =>
-      Number(v.rvis_latitud) || Number(v.rctt_latitud) ? (
-        <Button variant="ghost" size="sm" onClick={() => setVisitaEnMapa(v)}>
-          <IconMap /> Ver
-        </Button>
-      ) : (
-        "—"
-      ),
-  });
-
-  // Desde Efectuadas se salta al detalle del mismo cliente sin pasar por el menu.
+  // Que movimientos fueron: acompaña al conteo de la columna anterior.
   if (modo === "agrupada") {
     columnas.push({
-      titulo: "Detalle",
-      ancho: "8rem",
-      alineacion: "centro",
-      render: (v) => (
-        <Link
-          to={
-            `/visitas/detalladas?codUsu=${encodeURIComponent(v.rvis_enter || v.rvis_codusu || "")}` +
-            `&fecIni=${filtro.fecIni}&fecFin=${filtro.fecFin}` +
-            `&codCust=${encodeURIComponent(codigoCliente(v))}`
-          }
-          className={estilos.enlaceDetalle}
-        >
-          <IconDetalle /> Detalladas
-        </Link>
-      ),
+      titulo: "Movimientos",
+      valor: (v) => (v as MobVisitaGrupoDto).Movimientos ?? "",
+      render: (v) => (v as MobVisitaGrupoDto).Movimientos || "—",
     });
   }
 
@@ -469,6 +564,15 @@ export function VisitasDetalleBase({ modo, titulo, descripcion }: Props) {
       ) : null}
 
       {errorVendedores ? <Alert tone="warning">{errorVendedores}</Alert> : null}
+
+      {/* Los movimientos salen de una segunda consulta; si falla, la columna
+          se quedaba en "—" sin decir por que. */}
+      {sinMovimientos ? (
+        <Alert tone="warning">
+          No se pudo consultar el detalle de movimientos: las columnas “# Mov.” y
+          “Movimientos” quedan sin dato.
+        </Alert>
+      ) : null}
 
       <div className={formularios.filtros}>
         <Field label="Desde" htmlFor="fecIni">
@@ -645,13 +749,15 @@ export function VisitasDetalleBase({ modo, titulo, descripcion }: Props) {
               {/* Capas del mapa: los tres checks del modal del MVC. */}
               <div className={estilos.capas}>
                 <span className={estilos.capasTitulo}>Mostrar en el mapa</span>
+                {/* Cada casilla lleva el icono con el que sale ese tipo en el
+                    mapa: la leyenda y el mapa comparten simbolo y color. */}
                 <label className={estilos.capa}>
                   <input
                     type="checkbox"
                     checked={capas.dispositivo}
                     onChange={(e) => setCapas((c) => ({ ...c, dispositivo: e.target.checked }))}
                   />
-                  <span className={estilos.puntoAzul} /> Dispositivo
+                  <IconoPunto tipo="dispositivo" color="azul" /> Dispositivo
                 </label>
                 <label className={estilos.capa}>
                   <input
@@ -659,7 +765,7 @@ export function VisitasDetalleBase({ modo, titulo, descripcion }: Props) {
                     checked={capas.visita}
                     onChange={(e) => setCapas((c) => ({ ...c, visita: e.target.checked }))}
                   />
-                  <span className={estilos.puntoRojo} /> Visita
+                  <IconoPunto tipo="visita" color="rojo" /> Visita
                 </label>
                 <label className={estilos.capa}>
                   <input
@@ -667,7 +773,7 @@ export function VisitasDetalleBase({ modo, titulo, descripcion }: Props) {
                     checked={capas.cliente}
                     onChange={(e) => setCapas((c) => ({ ...c, cliente: e.target.checked }))}
                   />
-                  <span className={estilos.puntoVerde} /> Cliente
+                  <IconoPunto tipo="cliente" color="verde" /> Cliente
                 </label>
                 {filtro.funcionarios.length !== 1 ? (
                   <span className={estilos.nota}>
@@ -696,7 +802,7 @@ export function VisitasDetalleBase({ modo, titulo, descripcion }: Props) {
               columnas={columnas}
               filas={visitas.datos}
               claveFila={(v) =>
-                `${v.rvis_consec}-${v.rctt_cust}-${v.rctt_succli}-${v.rvis_horinivis}`
+                `${v.rvis_consec}-${codigoCliente(v)}-${v.rctt_succli}-${v.rvis_horinivis}`
               }
               error={visitas.error}
               vacio="No hay visitas para los filtros seleccionados."
@@ -711,11 +817,7 @@ export function VisitasDetalleBase({ modo, titulo, descripcion }: Props) {
       <Modal
         abierto={visitaEnMapa !== null}
         titulo={visitaEnMapa ? visitaEnMapa.rctt_nomcli || visitaEnMapa.rctt_razsoc : "Ubicación"}
-        descripcion={
-          visitaEnMapa
-            ? `${visitaEnMapa.rctt_cust} · ${visitaEnMapa.rvis_fecvis} ${visitaEnMapa.rvis_horinivis ?? ""}`
-            : undefined
-        }
+        descripcion={visitaEnMapa ? descripcionVisita(visitaEnMapa) : undefined}
         onCerrar={() => setVisitaEnMapa(null)}
         ancho="44rem"
       >

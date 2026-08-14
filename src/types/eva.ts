@@ -266,8 +266,18 @@ export interface MobVisitaDto {
 export interface MobVisitaGrupoDto extends Omit<MobVisitaDto, "rmedio_desmedvis" | "movdesc" | "motdes" | "accdesc"> {
   /** Cliente de la visita; en el DTO agrupado viene aparte de rctt_cust. */
   rvis_cust: string;
-  /** Documentos generados, unidos por coma. */
+  /**
+   * Tipos de documento generados, unidos por coma. El API no lo llena en el
+   * endpoint agrupado: se arma en el SPA cruzando con el detalle, igual que
+   * hacia RutasController.
+   */
   Movimientos: string;
+  /**
+   * Cuantos movimientos se registraron en el cliente. No existe en el API: se
+   * cuenta en el SPA sobre el detalle. `undefined` cuando esa consulta fallo,
+   * para no mostrar un 0 que se leeria como "no hubo movimientos".
+   */
+  CantMovimientos?: number;
 }
 
 export interface FiltersDetalle {

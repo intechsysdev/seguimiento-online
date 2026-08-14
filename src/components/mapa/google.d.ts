@@ -13,6 +13,16 @@ declare namespace google.maps {
     isEmpty(): boolean;
   }
 
+  /** Tamaño en pixeles del icono de un marcador (`scaledSize`). */
+  class Size {
+    constructor(ancho: number, alto: number);
+  }
+
+  /** Punto del icono que se ancla a la coordenada (`anchor`). */
+  class Point {
+    constructor(x: number, y: number);
+  }
+
   class Map {
     constructor(elemento: HTMLElement, opciones: Record<string, unknown>);
     fitBounds(limites: LatLngBounds, relleno?: number): void;

@@ -112,6 +112,41 @@
   background: var(--color-surface-sunken);
 }
 
+/*
+  Columna anclada a un borde (Columna.fija). Necesita fondo propio porque el
+  resto de la tabla se desplaza por debajo, y la linea con la sombra hacia el
+  contenido es la que deja ver que hay algo tapado.
+*/
+.fija {
+  position: sticky;
+  z-index: 1;
+  background: var(--color-surface);
+}
+
+.fijaIzquierda {
+  left: 0;
+  box-shadow:
+    inset -1px 0 0 var(--color-border),
+    10px 0 12px -10px hsl(var(--shadow-color) / 0.3);
+}
+
+.fijaDerecha {
+  right: 0;
+  box-shadow:
+    inset 1px 0 0 var(--color-border),
+    -10px 0 12px -10px hsl(var(--shadow-color) / 0.3);
+}
+
+th.fija {
+  z-index: 2;
+  background: var(--color-surface-sunken);
+}
+
+/* El resaltado de fila tiene que llegar tambien a la celda anclada. */
+.tabla tbody tr:hover td.fija {
+  background: var(--color-surface-sunken);
+}
+
 .vacio {
   padding: var(--space-6);
   text-align: center;

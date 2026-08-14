@@ -1,0 +1,32 @@
+.icono {
+  flex-shrink: 0;
+  vertical-align: -0.2em;
+}
+
+.icono path {
+  fill: currentColor;
+}
+
+.verde {
+  color: var(--color-punto-verde);
+}
+
+.rojo {
+  color: var(--color-punto-rojo);
+}
+
+.azul {
+  color: var(--color-punto-azul);
+}
+
+.ambar {
+  color: var(--color-punto-ambar);
+}
+
+.morado {
+  color: var(--color-punto-morado);
+}
+
+.naranja {
+  color: var(--color-punto-naranja);
+}

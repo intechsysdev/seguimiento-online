@@ -6,11 +6,18 @@ export const APP_NOMBRE = "Seguimiento Online";
 export const APP_VERSION = __APP_VERSION__;
 
 export const APP_EMPRESA = "Intechsys S.A.S.";
+export const APP_EMPRESA_URL = "https://intechsyscol.com/";
 
-const ANIO_INICIAL = 2021;
-const ANIO_ACTUAL = Number(APP_VERSION.split(".")[0]) || ANIO_INICIAL;
+/** Primer año de publicacion: ahi arranca el rango del copyright. */
+export const APP_ANIO_INICIAL = 2021;
 
-export const APP_COPYRIGHT = `Copyright © ${ANIO_INICIAL}-${ANIO_ACTUAL} ${APP_EMPRESA}`;
-
-/** Linea completa: "Copyright © 2021-2026 Intechsys S.A.S. · Versión: 2026.1.1" */
-export const APP_PIE = `${APP_COPYRIGHT} · Versión: ${APP_VERSION}`;
+/**
+ * Rango del copyright, del primer año de publicacion al año en curso.
+ *
+ * El año de cierre sale del reloj del equipo y no del numero de version, para
+ * que el aviso siga vigente aunque un año no se libere ninguna version.
+ */
+export function rangoCopyright(): string {
+  const cierre = Math.max(APP_ANIO_INICIAL, new Date().getFullYear());
+  return `${APP_ANIO_INICIAL}-${cierre}`;
+}

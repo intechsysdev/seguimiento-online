@@ -10,9 +10,10 @@ import {
   IconX,
 } from "../icons";
 import { LogoMarca } from "../Logo";
+import { PieLegal } from "../PieLegal";
 import { Avatar } from "../ui/Avatar";
 import { NAVEGACION, type NavEntrada } from "../../config/navigation";
-import { APP_COPYRIGHT, APP_NOMBRE, APP_VERSION } from "../../config/app";
+import { APP_NOMBRE } from "../../config/app";
 import { useAuth } from "../../store/AuthContext";
 import { useTheme } from "./useTheme";
 import styles from "./AppShell.module.css";
@@ -161,8 +162,7 @@ export function AppShell() {
         </nav>
 
         <footer className={styles.pieLateral}>
-          <span>{APP_COPYRIGHT}</span>
-          <span>Versión: {APP_VERSION}</span>
+          <PieLegal variante="apilado" />
         </footer>
       </aside>
 
@@ -248,6 +248,12 @@ export function AppShell() {
           */}
           <Outlet key={session?.tenantActual ?? "sin-compania"} />
         </main>
+
+        {/* En movil el sidebar esta fuera de pantalla, asi que el pie legal
+            se repite aqui para que siga a la vista dentro del aplicativo. */}
+        <footer className={styles.pieMovil}>
+          <PieLegal />
+        </footer>
       </div>
     </div>
   );

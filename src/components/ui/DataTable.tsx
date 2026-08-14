@@ -14,6 +14,12 @@ export interface Columna<T> {
   valor?: (fila: T) => string | number;
   ancho?: string;
   alineacion?: "izquierda" | "derecha" | "centro";
+  /**
+   * Ancla la columna a un borde: con scroll horizontal el resto de la tabla
+   * pasa por debajo y la columna sigue a la vista. Pensada para la columna de
+   * acciones, que si no obliga a desplazarse por cada fila.
+   */
+  fija?: "izquierda" | "derecha";
 }
 
 interface DataTableProps<T> {
@@ -165,6 +171,7 @@ export function DataTable<T>({
                 {columnas.map((columna, indice) => (
                   <th
                     key={columna.titulo}
+                    className={claseFija(columna.fija)}
                     style={{ width: columna.ancho, textAlign: alinear(columna.alineacion) }}
                     aria-sort={
                       orden?.indice === indice ? (orden.asc ? "ascending" : "descending") : undefined
@@ -194,6 +201,7 @@ export function DataTable<T>({
                   {columnas.map((columna) => (
                     <td
                       key={columna.titulo}
+                      className={claseFija(columna.fija)}
                       style={{ textAlign: alinear(columna.alineacion) }}
                     >
                       {columna.render(fila)}
@@ -229,6 +237,11 @@ export function DataTable<T>({
       ) : null}
     </div>
   );
+}
+
+function claseFija(fija?: Columna<unknown>["fija"]) {
+  if (!fija) return undefined;
+  return [styles.fija, fija === "izquierda" ? styles.fijaIzquierda : styles.fijaDerecha].join(" ");
 }
 
 function alinear(alineacion?: Columna<unknown>["alineacion"]) {

@@ -68,3 +68,36 @@ export function aFormatoApi(fechaISO: string) {
   const [anio, mes, dia] = fechaISO.split("-");
   return `${mes}-${dia}-${anio}`;
 }
+
+/**
+ * El API por compañía devuelve las fechas de visita en el mismo orden en que
+ * las recibe: MM/dd/yyyy (ver `aFormatoApi`). Mostrarlas crudas las dejaba como
+ * "08/13/2026" en una interfaz que en todo lo demas usa dd/MM, y con dia <= 12
+ * la fecha se lee mal sin que nada lo delate.
+ *
+ * Si el valor no encaja en el patron se devuelve tal cual: es preferible el
+ * dato crudo a inventar una fecha.
+ */
+function partesFechaVisita(valor: unknown) {
+  const texto = String(valor ?? "").trim();
+  const partes = texto.match(/^(\d{1,2})[/-](\d{1,2})[/-](\d{4})$/);
+  if (!partes) return null;
+  const [, mes, dia, anio] = partes;
+  // Un "mes" mayor que 12 solo puede ser un dia: ya viene en dd/MM, no se toca.
+  if (Number(mes) > 12) return null;
+  return { dia: dia.padStart(2, "0"), mes: mes.padStart(2, "0"), anio };
+}
+
+/** dd/MM/yyyy para mostrar. */
+export function formatFechaVisita(valor: unknown) {
+  const partes = partesFechaVisita(valor);
+  if (!partes) return String(valor ?? "").trim();
+  return `${partes.dia}/${partes.mes}/${partes.anio}`;
+}
+
+/** yyyy-MM-dd: clave para ordenar y buscar, que dd/MM no ordena bien. */
+export function ordenFechaVisita(valor: unknown) {
+  const partes = partesFechaVisita(valor);
+  if (!partes) return String(valor ?? "").trim();
+  return `${partes.anio}-${partes.mes}-${partes.dia}`;
+}

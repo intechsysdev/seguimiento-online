@@ -1,4 +1,43 @@
 /**
+ * Latitud maxima que se admite como punto de un cliente.
+ *
+ * No hay operacion comercial cerca de los polos, y es justo donde aterrizan los
+ * registros con la latitud y la longitud intercambiadas: una longitud de
+ * Colombia o Peru (~70-80 O) leida como latitud da un punto en la Antartida.
+ * Como esas longitudes siempre superan los 60 grados, el limite detecta el
+ * cambiazo sin tener que fijar un pais en el codigo.
+ */
+const LATITUD_MAXIMA = 60;
+
+/**
+ * Si el par sirve para dibujar un punto en el mapa.
+ *
+ * El ERP deja la latitud y la longitud en blanco, en cero, invertidas o con
+ * basura cuando el cliente nunca se georreferencio bien. Comprobar solo que el
+ * numero no sea cero deja pasar cosas como lat 999 o lat -74, que Google
+ * dibuja igual y ponen un marcador donde no hay ningun cliente.
+ */
+export function esCoordenada(lat: unknown, lng: unknown) {
+  const latitud = Number(lat);
+  const longitud = Number(lng);
+  if (!Number.isFinite(latitud) || !Number.isFinite(longitud)) return false;
+  // Un cero en cualquiera de los dos es "sin capturar", no el golfo de Guinea.
+  if (latitud === 0 || longitud === 0) return false;
+  return Math.abs(latitud) <= LATITUD_MAXIMA && Math.abs(longitud) <= 180;
+}
+
+/**
+ * El registro trae algo escrito en las coordenadas, pero no forma un punto
+ * usable. Se separa de "sin coordenadas" porque no es lo mismo: aqui hay un
+ * dato mal capturado en el maestro de clientes, y conviene decirlo para que
+ * alguien lo corrija en el ERP.
+ */
+export function coordenadaInvalida(lat: unknown, lng: unknown) {
+  const hayDato = Number(lat) !== 0 && Number(lng) !== 0 && String(lat ?? "").trim() !== "";
+  return hayDato && !esCoordenada(lat, lng);
+}
+
+/**
  * Distancia haversine, migrada de RutasController.CalcularDistancia.
  *
  * OJO: el original divide el resultado entre 100 antes de devolverlo, asi que

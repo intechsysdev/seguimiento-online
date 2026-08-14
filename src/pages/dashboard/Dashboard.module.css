@@ -97,31 +97,10 @@
   color: var(--color-ink-faint);
 }
 
-.pVerde,
-.pRojo,
-.pMorado,
-.pAzul {
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  display: inline-block;
+/* Los puntos de color de la leyenda los reemplazo IconoPunto; el margen que
+   los separaba del texto anterior ahora lo pone la propia leyenda. */
+.leyenda svg:not(:first-child) {
   margin-left: var(--space-2);
-}
-
-.pVerde {
-  background: #2e9e4f;
-}
-
-.pRojo {
-  background: #d93025;
-}
-
-.pMorado {
-  background: #8430ce;
-}
-
-.pAzul {
-  background: #1a73e8;
 }
 
 /* ---- Listas ---- */

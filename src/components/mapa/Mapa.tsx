@@ -2,6 +2,14 @@ import { useEffect, useRef, useState } from "react";
 import { cargarGoogleMaps } from "./googleMapsLoader";
 import { Spinner } from "../ui/Spinner";
 import { Alert } from "../ui/Alert";
+import {
+  COLOR_MAPA,
+  TAM_MARCADOR,
+  TAM_MARCADOR_NUMERADO,
+  iconoMarcador,
+  type ColorPunto,
+  type TipoPunto,
+} from "./tiposPunto";
 import styles from "./Mapa.module.css";
 
 export interface MarcadorMapa {
@@ -11,9 +19,9 @@ export interface MarcadorMapa {
   titulo: string;
   /** HTML del InfoWindow, como el que armaban las vistas del MVC. */
   detalle?: string;
-  color?: "verde" | "rojo" | "azul" | "ambar" | "morado" | "naranja";
+  color?: ColorPunto;
   /** Forma del marcador: distingue el tipo de punto ademas del color. */
-  tipo?: "cliente" | "visita" | "dispositivo" | "extraruta";
+  tipo?: TipoPunto;
   /** Numero de secuencia, para las rutas ordenadas. */
   etiqueta?: string;
 }
@@ -38,40 +46,12 @@ interface MapaProps {
   centro?: { lat: number; lng: number };
 }
 
-const COLORES: Record<NonNullable<MarcadorMapa["color"]>, string> = {
-  verde: "#2e9e4f",
-  rojo: "#d93025",
-  azul: "#1a73e8",
-  ambar: "#e8871a",
-  morado: "#8430ce",
-  naranja: "#f57c00",
-};
-
 /**
- * Iconos por tipo de punto, en SVG embebido (data URI) para no depender de los
- * `*-dot.png` genericos de Google: asi el dispositivo, el cliente, la visita y
- * la extraruta se distinguen por forma ademas de por color.
+ * Fuera del componente a proposito: como valor por defecto en la firma seria un
+ * objeto nuevo en cada render, y al estar en las dependencias del efecto este
+ * volveria a dibujar el mapa entero cada vez.
  */
-const FORMAS: Record<NonNullable<MarcadorMapa["tipo"]>, string> = {
-  // Pin clasico: la ubicacion del cliente.
-  cliente:
-    "M14 2c-5 0-9 4-9 9 0 6.5 9 17 9 17s9-10.5 9-17c0-5-4-9-9-9Zm0 12.5a3.5 3.5 0 1 1 0-7 3.5 3.5 0 0 1 0 7Z",
-  // Rombo: el punto donde se registro la visita.
-  visita: "M14 2 26 14 14 26 2 14Z",
-  // Telefono: la posicion del dispositivo.
-  dispositivo:
-    "M9 2h10a3 3 0 0 1 3 3v18a3 3 0 0 1-3 3H9a3 3 0 0 1-3-3V5a3 3 0 0 1 3-3Zm2 20h6v2h-6v-2Z",
-  // Estrella: visita fuera de la ruta planificada.
-  extraruta: "M14 2l3.6 7.6 8.4 1.1-6.1 5.8 1.5 8.3L14 20.9 6.6 24.8l1.5-8.3L2 10.7l8.4-1.1Z",
-};
-
-function iconoSvg(tipo: NonNullable<MarcadorMapa["tipo"]>, color: string) {
-  const svg =
-    `<svg xmlns="http://www.w3.org/2000/svg" width="30" height="30" viewBox="0 0 28 30">` +
-    `<path d="${FORMAS[tipo]}" fill="${color}" stroke="#ffffff" stroke-width="1.8" stroke-linejoin="round"/>` +
-    `</svg>`;
-  return `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(svg)}`;
-}
+const CENTRO_POR_DEFECTO = { lat: 3.53841, lng: -76.30114 };
 
 /**
  * Directions acepta como maximo 25 paradas por peticion (23 waypoints + origen
@@ -130,7 +110,7 @@ export function Mapa({
   marcadores,
   trazados,
   altura = "26rem",
-  centro = { lat: 3.53841, lng: -76.30114 },
+  centro = CENTRO_POR_DEFECTO,
 }: MapaProps) {
   const contenedor = useRef<HTMLDivElement>(null);
   const mapa = useRef<google.maps.Map | null>(null);
@@ -182,15 +162,29 @@ export function Mapa({
 
     marcadores.forEach((item) => {
       const posicion = { lat: item.lat, lng: item.lng };
-      const color = COLORES[item.color ?? "azul"];
+      const color = COLOR_MAPA[item.color ?? "azul"];
+      const numerado = Boolean(item.etiqueta?.trim());
+      const tam = numerado ? TAM_MARCADOR_NUMERADO : TAM_MARCADOR;
+
       const marcador = new gmaps.Marker({
         position: posicion,
         map: mapa.current,
         title: item.titulo,
-        icon: item.tipo ? { url: iconoSvg(item.tipo, color) } : undefined,
-        label: item.etiqueta
-          ? { text: item.etiqueta, color: "#ffffff", fontSize: "10px", fontWeight: "700" }
+        icon: item.tipo
+          ? {
+              url: iconoMarcador(item.tipo, color, item.etiqueta),
+              scaledSize: new gmaps.Size(tam, tam),
+              // Punta abajo, que es donde cae la coordenada real.
+              anchor: new gmaps.Point(tam / 2, tam),
+            }
           : undefined,
+        // Sin forma propia no hay donde dibujar el numero: se cae al label.
+        label:
+          !item.tipo && numerado
+            ? { text: item.etiqueta!, color: "#ffffff", fontSize: "12px", fontWeight: "700" }
+            : undefined,
+        // Los numerados por encima: son los que el usuario viene a leer.
+        zIndex: numerado ? 2 : 1,
       });
 
       if (item.detalle) {
@@ -259,6 +253,23 @@ export function Mapa({
         }
       }
     })();
+
+    /*
+      Sin esto los marcadores nunca se soltaban: al desmontarse el mapa (una
+      pantalla que lo esconde mientras recarga, por ejemplo) quedaban colgados
+      del objeto Map anterior, y al volver a montarlo se dibujaban encima los
+      nuevos. El resultado era un mapa que acumulaba puntos de consultas viejas
+      y parecia ignorar el filtro.
+    */
+    return () => {
+      // Invalida la tanda en curso: Directions responde tarde y sus renderers
+      // se engancharian a un mapa que ya no existe.
+      generacionActual.current += 1;
+      dibujados.current.forEach((m) => m.setMap(null));
+      dibujados.current = [];
+      renderers.current.forEach((r) => r.setMap(null));
+      renderers.current = [];
+    };
   }, [listo, marcadores, trazados, centro]);
 
   if (error) return <Alert tone="warning">{error}</Alert>;

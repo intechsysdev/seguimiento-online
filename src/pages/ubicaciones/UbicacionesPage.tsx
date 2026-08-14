@@ -7,6 +7,8 @@ import { Spinner } from "../../components/ui/Spinner";
 import { DataTable, type Columna } from "../../components/ui/DataTable";
 import { MultiSelect } from "../../components/ui/MultiSelect";
 import { Mapa, type MarcadorMapa } from "../../components/mapa/Mapa";
+import { IconoPunto } from "../../components/mapa/IconoPunto";
+import { colorEstado } from "../../components/mapa/tiposPunto";
 import { useApi } from "../../hooks/useApi";
 import { useGoogleMapsKey, useMobiControl } from "../../hooks/useAppConfig";
 import { useUsuariosAsignados } from "../../hooks/useUsuariosAsignados";
@@ -135,12 +137,15 @@ export function UbicacionesPage() {
     return filas;
   }, [hayFiltro, mobi.config?.IDApplicationConfig, mobi.token, vendedoresFiltrados, filtro, perfiles.datos]);
 
+  /* Cada fila es un equipo, asi que el marcador va con el icono Dispositivo y
+     el estado en color: azul en linea, rojo desconectado. */
   const marcadores: MarcadorMapa[] = (ubicaciones.datos ?? []).map((fila) => ({
     id: fila.deviceId,
     lat: fila.lat,
     lng: fila.lng,
     titulo: fila.nombre,
-    color: fila.enLinea ? "verde" : "rojo",
+    tipo: "dispositivo",
+    color: colorEstado(fila.enLinea),
     detalle: `<strong>${fila.nombre}</strong><br/>${fila.codusu} · ${fila.perfil}<br/>${
       fila.enLinea ? "En línea" : "Desconectado"
     }<br/>${fila.momento ? formatDateTime(fila.momento) : "Sin última posición"}`,
@@ -151,9 +156,18 @@ export function UbicacionesPage() {
       titulo: "Funcionario",
       valor: (f) => f.nombre,
       render: (f) => (
-        <div>
-          <strong>{f.nombre}</strong>
-          <div className={formularios.url}>{f.codusu}</div>
+        <div className={formularios.conIcono}>
+          {/* El mismo icono y el mismo color que lleva el punto en el mapa. */}
+          <IconoPunto
+            tipo="dispositivo"
+            color={colorEstado(f.enLinea)}
+            tam={18}
+            etiqueta={`Dispositivo ${f.enLinea ? "en línea" : "desconectado"}`}
+          />
+          <span>
+            <strong>{f.nombre}</strong>
+            <div className={formularios.url}>{f.codusu}</div>
+          </span>
         </div>
       ),
     },
@@ -162,8 +176,9 @@ export function UbicacionesPage() {
       titulo: "Estado",
       ancho: "8rem",
       valor: (f) => (f.enLinea ? "En línea" : "Desconectado"),
+      // Azul en linea / rojo desconectado, igual que el marcador del mapa.
       render: (f) => (
-        <Badge tone={f.enLinea ? "success" : "critical"} dot>
+        <Badge tone={f.enLinea ? "accent" : "critical"} dot>
           {f.enLinea ? "En línea" : "Desconectado"}
         </Badge>
       ),

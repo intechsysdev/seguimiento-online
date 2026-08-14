@@ -7,13 +7,11 @@ import { Alert } from "../../components/ui/Alert";
 import { Field } from "../../components/ui/Field";
 import { DataTable, type Columna } from "../../components/ui/DataTable";
 import { MultiSelect } from "../../components/ui/MultiSelect";
-import { Modal } from "../../components/ui/Modal";
-import { IconDetalle, IconEfectuadas } from "../../components/icons";
 import { useApi } from "../../hooks/useApi";
 import { useUsuariosAsignados } from "../../hooks/useUsuariosAsignados";
 import { catalogosEvaService } from "../../services/eva/catalogosEvaService";
 import { visitasEvaService } from "../../services/eva/visitasEvaService";
-import { aFormatoApi, hoyISO } from "../../utils/dates";
+import { aFormatoApi, formatFechaVisita, hoyISO, ordenFechaVisita } from "../../utils/dates";
 import type { MobVisitaResumen } from "../../types/eva";
 import inputs from "../../components/ui/inputs.module.css";
 import formularios from "../seguridad/Formularios.module.css";
@@ -78,9 +76,6 @@ export function ConsolidadasPage() {
   const [borrador, setBorrador] = useState<Filtro>(filtroInicial);
   const [filtro, setFiltro] = useState<Filtro>(filtroInicial);
 
-  /** Fila elegida: abre el dialogo para escoger efectuadas o detalladas. */
-  const [seleccionada, setSeleccionada] = useState<MobVisitaResumen | null>(null);
-
   const resumen = useApi(() => {
     if (!tenant || !cmpy || cargandoUsuarios) return Promise.resolve([]);
     return visitasEvaService.getListSummary(tenant, {
@@ -105,10 +100,41 @@ export function ConsolidadasPage() {
   const promedio = filas.length ? Math.ceil(totalVisitas / filas.length) : 0;
 
   const columnas: Columna<MobVisitaResumen>[] = [
+    /*
+      Las dos consultas abren la primera columna y quedan ancladas al borde
+      izquierdo: sin esto habia que desplazar la tabla hasta el final en cada
+      fila, y encima abrir un dialogo para elegir entre efectuadas y detalladas.
+    */
+    {
+      titulo: "Ver visitas",
+      fija: "izquierda",
+      render: (v) => (
+        <div className={estilos.accionesFila}>
+          {/* El aria-label lleva la fila: si no, un lector de pantalla anuncia
+              "Efectuadas" una vez por fila sin poder distinguirlas. */}
+          <Link
+            to={`/visitas/efectuadas?${enlaceVisitas(v, filtro)}`}
+            className={estilos.accion}
+            title="Efectuadas: una fila por cliente, con los documentos generados."
+            aria-label={`Visitas efectuadas de ${v.rusu_nombre} el ${formatFechaVisita(v.rvis_fecvis)}`}
+          >
+            Efectuadas
+          </Link>
+          <Link
+            to={`/visitas/detalladas?${enlaceVisitas(v, filtro)}`}
+            className={estilos.accion}
+            title="Detalladas: una fila por movimiento, con medio, motivo y acción."
+            aria-label={`Visitas detalladas de ${v.rusu_nombre} el ${formatFechaVisita(v.rvis_fecvis)}`}
+          >
+            Detalladas
+          </Link>
+        </div>
+      ),
+    },
     {
       titulo: "Fecha",
-      valor: (v) => v.rvis_fecvis,
-      render: (v) => v.rvis_fecvis,
+      valor: (v) => ordenFechaVisita(v.rvis_fecvis),
+      render: (v) => formatFechaVisita(v.rvis_fecvis),
       ancho: "8rem",
     },
     {
@@ -153,16 +179,6 @@ export function ConsolidadasPage() {
       ancho: "6rem",
       valor: (v) => Number(v.cantvisitas || 0),
       render: (v) => <strong>{v.cantvisitas}</strong>,
-    },
-    {
-      titulo: "",
-      ancho: "8rem",
-      alineacion: "derecha",
-      render: (v) => (
-        <Button variant="secondary" size="sm" onClick={() => setSeleccionada(v)}>
-          Ver visitas
-        </Button>
-      ),
     },
   ];
 
@@ -312,49 +328,6 @@ export function ConsolidadasPage() {
         porPagina={25}
         exportar="visitas-consolidadas"
       />
-
-      {/*
-        Elegir el tipo de consulta desde la propia fila evita tener que ir al
-        menu lateral para cambiar entre efectuadas y detalladas.
-      */}
-      <Modal
-        abierto={seleccionada !== null}
-        titulo="¿Qué visitas quieres ver?"
-        descripcion={
-          seleccionada
-            ? `${seleccionada.rusu_nombre} (${seleccionada.rvis_enter}) · ${seleccionada.rvis_fecvis} · ${seleccionada.cantvisitas} visitas`
-            : undefined
-        }
-        onCerrar={() => setSeleccionada(null)}
-      >
-        <div className={estilos.opciones}>
-          <Link
-            to={`/visitas/efectuadas?${enlaceVisitas(seleccionada, filtro)}`}
-            className={estilos.opcion}
-          >
-            <span className={estilos.opcionIcono}>
-              <IconEfectuadas />
-            </span>
-            <span>
-              <strong>Efectuadas</strong>
-              <small>Una fila por cliente, con los documentos generados.</small>
-            </span>
-          </Link>
-
-          <Link
-            to={`/visitas/detalladas?${enlaceVisitas(seleccionada, filtro)}`}
-            className={estilos.opcion}
-          >
-            <span className={estilos.opcionIcono}>
-              <IconDetalle />
-            </span>
-            <span>
-              <strong>Detalladas</strong>
-              <small>Una fila por movimiento, con medio, motivo y acción.</small>
-            </span>
-          </Link>
-        </div>
-      </Modal>
     </>
   );
 }
@@ -365,9 +338,8 @@ export function ConsolidadasPage() {
  * las carga en un <input type="date">.
  */
 function enlaceVisitas(
-  fila: { rvis_enter: string } | null,
+  fila: { rvis_enter: string },
   filtro: { fecIni: string; fecFin: string },
 ) {
-  if (!fila) return "";
   return `codUsu=${encodeURIComponent(fila.rvis_enter)}&fecIni=${filtro.fecIni}&fecFin=${filtro.fecFin}`;
 }
