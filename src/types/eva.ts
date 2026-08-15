@@ -278,6 +278,12 @@ export interface MobVisitaGrupoDto extends Omit<MobVisitaDto, "rmedio_desmedvis"
    * para no mostrar un 0 que se leeria como "no hubo movimientos".
    */
   CantMovimientos?: number;
+  /**
+   * Cuantos registros de visita se fundieron en esta fila. Tampoco existe en el
+   * API: el endpoint agrupa por registro y la vista consolida por cliente (ver
+   * utils/visitas.ts). 1 salvo que el funcionario haya entrado varias veces.
+   */
+  VisitasConsolidadas?: number;
 }
 
 export interface FiltersDetalle {

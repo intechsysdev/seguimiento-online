@@ -21,6 +21,7 @@ import { mobicontrolService } from "../../services/mobicontrolService";
 import { esCoordenada } from "../../utils/geo";
 import { aFormatoApi, formatFechaVisita, hoyISO, ordenFechaVisita } from "../../utils/dates";
 import { indexarMovimientos, normalizarCodigo } from "../../utils/movimientos";
+import { consolidarPorCliente } from "../../utils/visitas";
 import type { FiltersDetalle, MobVisitaDto, MobVisitaGrupoDto } from "../../types/eva";
 import inputs from "../../components/ui/inputs.module.css";
 import formularios from "../seguridad/Formularios.module.css";
@@ -190,7 +191,12 @@ export function VisitasDetalleBase({ modo, titulo, descripcion }: Props) {
     ]).then(([grupos, detalle]) => {
       const buscarMovimientos = indexarMovimientos(detalle);
 
-      return (grupos ?? []).map((g) => {
+      /*
+        Consolidar ANTES de cruzar los movimientos: el cruce va por cliente, de
+        modo que las filas repetidas del mismo cliente traerian todas el mismo
+        conteo y sumarlas lo multiplicaria.
+      */
+      return consolidarPorCliente(grupos ?? []).map((g) => {
         // El agrupado trae el cliente en rvis_cust; rctt_cust queda vacio.
         const movimientos = buscarMovimientos(g.rvis_cust || g.rctt_cust, g.rctt_succli);
 
@@ -487,7 +493,17 @@ export function VisitasDetalleBase({ modo, titulo, descripcion }: Props) {
       titulo: "Horario",
       ancho: "10rem",
       valor: (v) => v.rvis_horinivis ?? "",
-      render: (v) => `${v.rvis_horinivis ?? ""} — ${v.rvis_horfinvis ?? ""}`,
+      // En Efectuadas es la primera entrada y la ultima salida del cliente; se
+      // avisa cuando la fila junta varias visitas para que no se lea como una.
+      render: (v) => {
+        const veces = (v as MobVisitaGrupoDto).VisitasConsolidadas ?? 1;
+        return (
+          <div>
+            {`${v.rvis_horinivis ?? ""} — ${v.rvis_horfinvis ?? ""}`}
+            {veces > 1 ? <div className={formularios.sub}>{veces} visitas</div> : null}
+          </div>
+        );
+      },
     },
     {
       titulo: "Tiempo",
@@ -802,7 +818,11 @@ export function VisitasDetalleBase({ modo, titulo, descripcion }: Props) {
               columnas={columnas}
               filas={visitas.datos}
               claveFila={(v) =>
-                `${v.rvis_consec}-${codigoCliente(v)}-${v.rctt_succli}-${v.rvis_horinivis}`
+                // En Efectuadas la fila es el cliente del dia, no el registro:
+                // rvis_consec no sirve de clave porque se fusionan varios.
+                modo === "agrupada"
+                  ? `${v.rvis_fecvis}-${v.rvis_enter || v.rvis_codusu}-${codigoCliente(v)}-${v.rctt_succli}`
+                  : `${v.rvis_consec}-${codigoCliente(v)}-${v.rctt_succli}-${v.rvis_horinivis}`
               }
               error={visitas.error}
               vacio="No hay visitas para los filtros seleccionados."
