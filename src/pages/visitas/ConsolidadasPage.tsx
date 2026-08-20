@@ -96,6 +96,7 @@ export function ConsolidadasPage() {
   }, [tenant?.IDTenant, cmpy, filtro, codigosAsignados, cargandoUsuarios]);
 
   const filas = resumen.datos ?? [];
+  // Suma de clientes visitados, no de movimientos (ver la columna "Visitas").
   const totalVisitas = filas.reduce((suma, f) => suma + Number(f.cantvisitas || 0), 0);
   const promedio = filas.length ? Math.ceil(totalVisitas / filas.length) : 0;
 
@@ -174,11 +175,24 @@ export function ConsolidadasPage() {
       ancho: "7rem",
     },
     {
+      /*
+        Clientes distintos visitados en el dia. El API contaba filas de
+        mob_rvisita (una por movimiento), asi que este numero no cuadraba con
+        las filas que muestra Efectuadas, que van una por cliente.
+      */
       titulo: "Visitas",
       alineacion: "derecha",
       ancho: "6rem",
       valor: (v) => Number(v.cantvisitas || 0),
       render: (v) => <strong>{v.cantvisitas}</strong>,
+    },
+    {
+      // Lo que la columna anterior traia antes; se conserva porque el dato sirve.
+      titulo: "Movimientos",
+      alineacion: "derecha",
+      ancho: "7rem",
+      valor: (v) => Number(v.cantmovimientos || 0),
+      render: (v) => v.cantmovimientos ?? "—",
     },
   ];
 

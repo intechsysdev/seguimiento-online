@@ -18,6 +18,9 @@ const FILTRO_VACIO = {
   Territorios: [] as string[],
   Ciudades: [] as string[],
   codCust: "",
+  // Sin filtro por cliente: estas pantallas consultan la jornada completa.
+  custFiltro: "",
+  succliFiltro: "",
   duracionVisitaDesde: 0,
   duracionVisitaHasta: 0,
   horaDesde: "",

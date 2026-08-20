@@ -53,6 +53,9 @@ const FILTRO_VACIO = {
   Acciones: [],
   noCompra: [],
   Tipomovimiento: [],
+  // Sin filtro por cliente: la ruta se consulta completa.
+  custFiltro: "",
+  succliFiltro: "",
   duracionVisitaDesde: 0,
   duracionVisitaHasta: 0,
   horaDesde: "",

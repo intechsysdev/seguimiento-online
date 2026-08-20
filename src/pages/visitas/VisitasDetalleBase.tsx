@@ -31,7 +31,10 @@ interface Filtro {
   fecIni: string;
   fecFin: string;
   funcionarios: string[];
-  codCust: string;
+  /** Cliente al que se limita la consulta (campo "Cliente" de la pantalla). */
+  cliente: string;
+  /** Sucursal del cliente; solo llega desde el enlace de Efectuadas. */
+  sucursal: string;
   regiones: string[];
   territorios: string[];
   ciudades: string[];
@@ -51,7 +54,8 @@ function filtroInicial(funcionarios: string[] = [], fecIni = hoyISO(), fecFin = 
     fecIni,
     fecFin,
     funcionarios,
-    codCust: "",
+    cliente: "",
+    sucursal: "",
     regiones: [],
     territorios: [],
     ciudades: [],
@@ -100,8 +104,9 @@ export function VisitasDetalleBase({ modo, titulo, descripcion }: Props) {
     params.get("fecIni") ?? hoyISO(),
     params.get("fecFin") ?? hoyISO(),
   );
-  // El codigo de cliente tambien puede llegar por la URL (desde Efectuadas).
-  inicial.codCust = params.get("codCust") ?? "";
+  // El cliente tambien puede llegar por la URL (drill-down desde Efectuadas).
+  inicial.cliente = params.get("cust") ?? "";
+  inicial.sucursal = params.get("succli") ?? "";
 
   const [borrador, setBorrador] = useState<Filtro>(inicial);
   const [filtro, setFiltro] = useState<Filtro>(inicial);
@@ -149,7 +154,14 @@ export function VisitasDetalleBase({ modo, titulo, descripcion }: Props) {
     const filtroApi: FiltersDetalle = {
       // Sin vendedor elegido, el controller usaba todos los asignados.
       codUsu: filtro.funcionarios.length ? filtro.funcionarios : codigosAsignados,
-      codCust: filtro.codCust,
+      /*
+        codCust NO filtra: en el API elige la tabla de clientes segun el perfil.
+        El codigo del cliente iba aqui y por eso el detalle seguia trayendo la
+        jornada completa. Ahora va en custFiltro, que si filtra.
+      */
+      codCust: "",
+      custFiltro: filtro.cliente,
+      succliFiltro: filtro.sucursal,
       fecIni: aFormatoApi(filtro.fecIni),
       fecFin: aFormatoApi(filtro.fecFin),
       Regiones: filtro.regiones,
@@ -425,7 +437,8 @@ export function VisitasDetalleBase({ modo, titulo, descripcion }: Props) {
                 to={
                   `/visitas/detalladas?codUsu=${encodeURIComponent(v.rvis_enter || v.rvis_codusu || "")}` +
                   `&fecIni=${filtro.fecIni}&fecFin=${filtro.fecFin}` +
-                  `&codCust=${encodeURIComponent(codigoCliente(v))}`
+                  `&cust=${encodeURIComponent(codigoCliente(v))}` +
+                  `&succli=${encodeURIComponent(v.rctt_succli ?? "")}`
                 }
                 className={estilos.accion}
                 title="Detalladas: una fila por movimiento, con medio, motivo y acción."
@@ -623,12 +636,12 @@ export function VisitasDetalleBase({ modo, titulo, descripcion }: Props) {
           cargando={cargandoUsuarios}
         />
 
-        <Field label="Cliente" htmlFor="codCust" optional>
+        <Field label="Cliente" htmlFor="cliente" optional>
           <input
-            id="codCust"
+            id="cliente"
             className={inputs.input}
-            value={borrador.codCust}
-            onChange={(e) => setBorrador((p) => ({ ...p, codCust: e.target.value }))}
+            value={borrador.cliente}
+            onChange={(e) => setBorrador((p) => ({ ...p, cliente: e.target.value }))}
             placeholder="Código de cliente"
           />
         </Field>

@@ -302,7 +302,16 @@ export interface FiltersDetalle {
   cantVisitaDesde: number;
   cantVisitaHasta: number;
   codUsu: string[];
+  /**
+   * OJO: no filtra. En el API elige la tabla de clientes segun el perfil
+   * (1 = rcustrans, 3 = rcustases, resto = rcustmain). Para filtrar por cliente
+   * va `custFiltro`; el SPA manda "" y se queda con la tabla por defecto.
+   */
   codCust: string;
+  /** Cliente al que se limita la consulta. Vacio = todos. */
+  custFiltro: string;
+  /** Sucursal del cliente de `custFiltro`. Vacio = cualquiera. */
+  succliFiltro: string;
   /** MM-dd-yyyy, igual que el resto de filtros del API por compañía. */
   fecIni: string;
   fecFin: string;
@@ -352,7 +361,10 @@ export interface MobVisitaResumen {
   minrvis_horinivis: string;
   maxrvis_horinivis: string;
   rvis_enter: string;
+  /** Clientes distintos visitados en el dia (visitas efectuadas). */
   cantvisitas: string;
+  /** Movimientos registrados en el dia. Es lo que `cantvisitas` traia antes. */
+  cantmovimientos: string;
   tiempoVis: string;
   reg_desc: string;
   ter_desc: string;
