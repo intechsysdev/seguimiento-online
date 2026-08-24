@@ -73,7 +73,7 @@ export function MarcasPage() {
     const datos = new FormData(evento.currentTarget);
 
     // El controller armaba el nombre con la parte derecha de cada descripcion.
-    const descLinea = lineas.datos?.find((l) => l.rln_linea === lineaSel)?.rln_descr ?? "";
+    const descLinea = lineas.datos?.find((l) => l.KEY_rln_linea === lineaSel)?.rln_descr ?? "";
     const nombreLinea = descLinea.split("-")[1]?.trim() ?? descLinea.trim();
     const nombreSublinea = sublineaSel !== "0" ? (sublineaSel.split("-")[1]?.trim() ?? "") : "";
 
@@ -206,7 +206,7 @@ export function MarcasPage() {
               >
                 <option value="">Selecciona una línea</option>
                 {lineas.datos?.map((l) => (
-                  <option key={l.rln_linea} value={l.rln_linea}>
+                  <option key={l.KEY_rln_linea} value={l.KEY_rln_linea}>
                     {l.rln_descr}
                   </option>
                 ))}
@@ -223,7 +223,7 @@ export function MarcasPage() {
               >
                 <option value="0">Sin sublínea</option>
                 {sublineas.datos?.map((s) => (
-                  <option key={s.rsb_subl} value={`${s.rsb_subl}-${s.rsb_descr}`}>
+                  <option key={s.KEY_rsb_subl} value={`${s.KEY_rsb_subl}-${s.rsb_descr}`}>
                     {s.rsb_descr}
                   </option>
                 ))}

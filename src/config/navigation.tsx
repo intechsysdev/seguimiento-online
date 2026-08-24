@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 import {
+  IconBox,
   IconBuilding,
   IconResumen,
   IconEfectuadas,
@@ -7,10 +8,12 @@ import {
   IconGift,
   IconHistory,
   IconIdCard,
+  IconLayers,
   IconMap,
   IconMapPin,
   IconRoute,
   IconShield,
+  IconStore,
   IconTools,
   IconUser,
   IconUsers,
@@ -80,6 +83,22 @@ export const NAVEGACION: NavEntrada[] = [
   { tipo: "enlace", label: "Ubicaciones", to: "/ubicaciones", icon: <IconMap />, modulo: "Ubicaciones" },
   { tipo: "enlace", label: "Rutas", to: "/rutas", icon: <IconRoute />, modulo: "Rutas" },
   { tipo: "enlace", label: "Clientes", to: "/clientes", icon: <IconUser />, modulo: "Clientes" },
+  /*
+   * Productos va sin `modulo` a proposito: todavia no existe el permiso
+   * "Productos" en Seguridad, y exigirlo dejaba el modulo invisible para todos.
+   * Al crear el permiso basta con devolver `modulo: "Productos"` aqui y en la
+   * ruta de App.tsx.
+   */
+  {
+    tipo: "grupo",
+    label: "Productos",
+    icon: <IconBox />,
+    items: [
+      { label: "Catálogo", to: "/productos", icon: <IconStore /> },
+      { label: "Líneas", to: "/productos/lineas", icon: <IconLayers /> },
+      { label: "Listas de precios", to: "/productos/precios", icon: <IconIdCard /> },
+    ],
+  },
   /*
    * Bonificados sale como enlace suelto y ya no exige el modulo "POP": estaba
    * anidado bajo Mercadeo > POP, asi que un usuario con permiso de Mercadeo

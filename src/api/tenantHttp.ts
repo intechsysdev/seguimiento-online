@@ -60,6 +60,39 @@ export async function tenantRequest<T>(
   }
 }
 
+/**
+ * Sube un archivo con multipart/form-data.
+ *
+ * Va aparte de `tenantRequest` porque ese serializa el cuerpo a JSON, y aqui
+ * el Content-Type lo tiene que poner el navegador: es el unico que conoce el
+ * `boundary` del multipart.
+ */
+export async function tenantUpload(
+  tenant: TenantDto,
+  path: string,
+  archivo: Blob,
+  nombreArchivo: string,
+  campo = "file",
+): Promise<string> {
+  const formulario = new FormData();
+  formulario.append(campo, archivo, nombreArchivo);
+
+  const response = await fetch(construirUrl(tenant, path), {
+    method: "POST",
+    headers: {
+      accept: "application/json",
+      Authorization: basicAuth(tenant),
+    },
+    body: formulario,
+  });
+
+  const texto = await response.text();
+  if (!response.ok) throw new ApiError(response.status, texto);
+  // El endpoint responde el texto "1" al guardar; ante un fallo devuelve el
+  // mensaje de la excepcion con codigo 200, asi que hay que mirar el cuerpo.
+  return texto.trim().replace(/^"|"$/g, "");
+}
+
 export const tenantHttp = {
   get: <T>(tenant: TenantDto, path: string, options?: TenantRequestOptions) =>
     tenantRequest<T>(tenant, path, { ...options, method: "GET" }),

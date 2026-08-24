@@ -130,15 +130,56 @@ export interface FiltersRuta {
 }
 
 export interface MobLinea {
-  rln_cmpy: string;
-  rln_linea: string;
+  KEY_rln_cmpy: string;
+  KEY_rln_linea: string;
   rln_descr: string;
 }
 
+/**
+ * Producto del catalogo (Productos/GetListAll y GetListByVendedor).
+ *
+ * El API devuelve mob_rprodvendedorE: los mismos campos de mob_rproductos.
+ * `rpr_urlimagen` es la URL absoluta de la foto en el servidor de imagenes;
+ * `rpr_imagen` solo lo usa el movil para guardar la ruta local descargada.
+ */
+export interface MobProducto {
+  KEY_rpr_cmpy: string;
+  KEY_rpr_id: string;
+  rpr_desc: string;
+  rpr_linea: string;
+  rpr_subl: string;
+  rpr_nuevo: string;
+  rpr_componentes: string;
+  rpr_aplicacion: string;
+  rpr_mediospubli: string;
+  rpr_urlvideoclip: string;
+  rpr_urlimagen: string;
+  rpr_imagen: string;
+  rpr_date: string;
+  rpr_time: string;
+  rpr_estadoupd: string;
+  rpr_ean: string;
+}
+
+/** Lista de precios disponible (ListasPrecios/GetListByCodUsu, viene distinct). */
+export interface MobListaPrecio {
+  KEY_rpri_cmpy: string;
+  KEY_rpri_lista: string;
+}
+
+/** Precio de un producto dentro de una lista (ListasPrecios/GetListProducts). */
+export interface MobPrecioProducto {
+  KEY_rpri_cmpy: string;
+  KEY_rpri_id: string;
+  KEY_rpri_lista: string;
+  /** El API lo declara como texto, no como numero. */
+  rpri_price: string;
+}
+
 export interface MobSublinea {
-  rsb_cmpy: string;
-  rsb_linea: string;
-  rsb_subl: string;
+  KEY_rsb_cmpy: string;
+  KEY_rsb_linea: string;
+  KEY_rsb_subl: string;
   rsb_descr: string;
 }
 

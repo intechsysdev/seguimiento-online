@@ -29,6 +29,9 @@ import { ApisPage } from "./pages/administracion/ApisPage";
 import { PerfilesPage } from "./pages/administracion/PerfilesPage";
 import { AuditoriaPage } from "./pages/administracion/AuditoriaPage";
 import { ClientesPage } from "./pages/clientes/ClientesPage";
+import { CatalogoPage } from "./pages/productos/CatalogoPage";
+import { LineasPage } from "./pages/productos/LineasPage";
+import { ListasPrecioPage } from "./pages/productos/ListasPrecioPage";
 import { ConsolidadasPage } from "./pages/visitas/ConsolidadasPage";
 import { EfectuadasPage } from "./pages/visitas/EfectuadasPage";
 import { DetalladasPage } from "./pages/visitas/DetalladasPage";
@@ -126,6 +129,17 @@ function App() {
           <Route element={<ProtectedRoute modulo="Clientes" />}>
             <Route element={<AppShell />}>
               <Route path="/clientes" element={<ClientesPage />} />
+            </Route>
+          </Route>
+
+          {/* Catalogo de productos: mismos endpoints que consume la app movil.
+              Sin `modulo`: sigue exigiendo sesion, pero no el permiso
+              "Productos", que aun no existe en Seguridad. */}
+          <Route element={<ProtectedRoute />}>
+            <Route element={<AppShell />}>
+              <Route path="/productos" element={<CatalogoPage />} />
+              <Route path="/productos/lineas" element={<LineasPage />} />
+              <Route path="/productos/precios" element={<ListasPrecioPage />} />
             </Route>
           </Route>
 
