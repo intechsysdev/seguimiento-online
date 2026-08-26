@@ -64,6 +64,21 @@ export const productosEvaService = {
       nombre,
     ),
 
+  /**
+   * Apunta `rpr_urlimagen` al archivo recien cargado.
+   *
+   * Solo hace falta para un producto que no tenia foto: al reemplazar una
+   * existente el nombre no cambia y la URL guardada sigue siendo valida.
+   * Se manda la ruta relativa ("carpeta/archivo.jpg"); la base la pone el API
+   * desde la misma configuracion con la que FileUpload escribe el archivo.
+   */
+  actualizarImagen: (tenant: TenantDto, cmpy: string, id: string, ruta: string) =>
+    tenantHttp.post<number>(tenant, "api/v1/Productos/UpdateImagen", {
+      cmpy,
+      id: id.trim(),
+      ruta,
+    }),
+
   /** Precios de cada producto dentro de una lista. */
   preciosDeLista: (tenant: TenantDto, cmpy: string, lista: string, codUsu: string) =>
     tenantHttp.get<MobPrecioProducto[]>(

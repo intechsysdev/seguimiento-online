@@ -8,6 +8,7 @@ import {
   LADO_BIG,
   LADO_NORMAL,
   partesUrlImagen,
+  plantillaImagenes,
   redimensionarCuadrado,
 } from "../../utils/imagenes";
 import estilos from "./Productos.module.css";
@@ -16,6 +17,12 @@ interface CambiarFotoProps {
   tenant: TenantDto;
   /** URL actual del producto: de ella salen la carpeta y el nombre del archivo. */
   urlActual: string;
+  /** Codigo del producto, para nombrar la foto de uno que aun no tiene. */
+  codigo: string;
+  /** Compañía activa: la necesita el API para ubicar el producto. */
+  cmpy: string;
+  /** Convencion deducida del catalogo (ver `plantillaImagenes`). */
+  plantilla: ReturnType<typeof plantillaImagenes>;
   /** Se llama al terminar, para que la ficha vuelva a pedir la imagen. */
   onSubida: () => void;
 }
@@ -31,21 +38,41 @@ const MAX_MB = 10;
  * en product_detail.dart). Conservar el nombre es lo que permite no tocar la
  * base: `rpr_urlimagen` sigue apuntando al mismo sitio.
  */
-export function CambiarFoto({ tenant, urlActual, onSubida }: CambiarFotoProps) {
+export function CambiarFoto({
+  tenant,
+  urlActual,
+  codigo,
+  cmpy,
+  plantilla,
+  onSubida,
+}: CambiarFotoProps) {
   const entrada = useRef<HTMLInputElement>(null);
   const [subiendo, setSubiendo] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [listo, setListo] = useState(false);
 
-  const partes = partesUrlImagen(urlActual, URL_PATH ?? "");
+  /*
+    Con foto previa se reemplaza su archivo. Sin ella se crea uno nuevo en la
+    misma carpeta del resto del catalogo, con el nombre que marca la convencion
+    deducida de los productos que si tienen foto.
+  */
+  const propias = partesUrlImagen(urlActual, URL_PATH ?? "");
+  const esNueva = !propias;
+  const partes =
+    propias ??
+    (plantilla && (codigo ?? "").trim()
+      ? {
+          carpeta: plantilla.carpeta,
+          carpetaBig: plantilla.carpetaBig,
+          archivo: `${codigo.trim()}${plantilla.extension}`,
+        }
+      : null);
 
-  // Sin URL previa no hay ni carpeta ni nombre que reemplazar, y como el API de
-  // productos no permite escribir, un archivo nuevo quedaria sin quien lo lea.
   if (!partes) {
     return (
       <Alert tone="info">
-        Este producto no tiene una foto registrada, así que no hay archivo que
-        reemplazar. Debe cargarse primero desde el maestro de productos.
+        No se puede deducir dónde guardar la foto: el catálogo no tiene imágenes
+        de las que leer la carpeta y el patrón de nombre.
       </Alert>
     );
   }
@@ -91,6 +118,20 @@ export function CambiarFoto({ tenant, urlActual, onSubida }: CambiarFotoProps) {
       );
       if (resNormal !== "1") throw new Error(`No se pudo guardar la miniatura: ${resNormal}`);
 
+      /*
+        Solo cuando el producto no tenia foto: hay que apuntar rpr_urlimagen al
+        archivo nuevo o el catalogo no lo mostraria. Al reemplazar una existente
+        el nombre no cambia y la URL guardada ya es correcta.
+      */
+      if (esNueva) {
+        await productosEvaService.actualizarImagen(
+          tenant,
+          cmpy,
+          codigo,
+          `${partes!.carpeta}/${partes!.archivo}`,
+        );
+      }
+
       setListo(true);
       onSubida();
     } catch (e) {
@@ -120,7 +161,7 @@ export function CambiarFoto({ tenant, urlActual, onSubida }: CambiarFotoProps) {
         onClick={() => entrada.current?.click()}
         disabled={subiendo}
       >
-        {subiendo ? "Subiendo…" : "Cambiar foto"}
+        {subiendo ? "Subiendo…" : esNueva ? "Cargar foto" : "Cambiar foto"}
       </Button>
 
       <p className={estilos.notaFoto}>
@@ -130,7 +171,9 @@ export function CambiarFoto({ tenant, urlActual, onSubida }: CambiarFotoProps) {
       </p>
 
       {error ? <Alert tone="critical">{error}</Alert> : null}
-      {listo && !error ? <Alert tone="success">Foto actualizada.</Alert> : null}
+      {listo && !error ? (
+        <Alert tone="success">{esNueva ? "Foto creada." : "Foto actualizada."}</Alert>
+      ) : null}
     </div>
   );
 }

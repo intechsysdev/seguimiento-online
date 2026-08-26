@@ -8,6 +8,8 @@ import { MultiSelect } from "../../components/ui/MultiSelect";
 import { useApi } from "../../hooks/useApi";
 import { useAuth } from "../../store/AuthContext";
 import { productosEvaService } from "../../services/eva/productosEvaService";
+import { URL_PATH } from "../../api/http";
+import { plantillaImagenes } from "../../utils/imagenes";
 import type { MobProducto } from "../../types/eva";
 import type { TenantDto } from "../../types/seguridad";
 import { CambiarFoto } from "./CambiarFoto";
@@ -73,6 +75,16 @@ export function CatalogoPage() {
   }, [productos.datos, lineasSel, sublineasSel]);
 
   const conFoto = filas.filter((p) => (p.rpr_urlimagen ?? "").trim()).length;
+
+  /*
+    Carpeta y patron de nombre, leidos de los productos que si tienen foto. Se
+    calcula sobre el catalogo completo y no sobre lo filtrado: la convencion es
+    del catalogo, y con un filtro estrecho podria quedarse sin muestras.
+  */
+  const plantilla = useMemo(
+    () => plantillaImagenes(productos.datos ?? [], URL_PATH ?? ""),
+    [productos.datos],
+  );
 
   const columnas: Columna<MobProducto>[] = [
     /*
@@ -203,6 +215,9 @@ export function CatalogoPage() {
           <FichaProducto
             producto={detalle}
             tenant={tenant}
+            cmpy={cmpy}
+            plantilla={plantilla}
+            onFotoNueva={() => productos.recargar()}
             linea={nombreLinea(detalle.rpr_linea)}
             sublinea={nombreSublinea(detalle.rpr_linea, detalle.rpr_subl)}
           />
@@ -216,11 +231,18 @@ export function CatalogoPage() {
 function FichaProducto({
   producto,
   tenant,
+  cmpy,
+  plantilla,
+  onFotoNueva,
   linea,
   sublinea,
 }: {
   producto: MobProducto;
   tenant: TenantDto;
+  cmpy: string;
+  plantilla: ReturnType<typeof plantillaImagenes>;
+  /** Tras crear una foto hay que releer el catalogo: cambio rpr_urlimagen. */
+  onFotoNueva: () => void;
   linea: string;
   sublinea: string;
 }) {
@@ -270,7 +292,13 @@ function FichaProducto({
       <CambiarFoto
         tenant={tenant}
         urlActual={producto.rpr_urlimagen}
-        onSubida={() => setVersion((n) => n + 1)}
+        codigo={producto.KEY_rpr_id}
+        cmpy={cmpy}
+        plantilla={plantilla}
+        onSubida={() => {
+          setVersion((n) => n + 1);
+          if (!(producto.rpr_urlimagen ?? "").trim()) onFotoNueva();
+        }}
       />
     </div>
   );

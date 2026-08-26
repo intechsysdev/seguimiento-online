@@ -101,3 +101,53 @@ export function partesUrlImagen(url: string, base: string) {
     archivo,
   };
 }
+
+/** Producto reducido a lo que hace falta para deducir la convencion. */
+interface ProductoConFoto {
+  KEY_rpr_id: string;
+  rpr_urlimagen: string;
+}
+
+/**
+ * Deduce donde y con que nombre guardar la foto de un producto que aun no
+ * tiene ninguna.
+ *
+ * No hay forma de saber la convencion por configuracion, asi que se lee de los
+ * productos que si tienen foto: si el nombre del archivo coincide con el codigo
+ * del producto, la convencion es `{codigo}.{ext}` y se puede construir el
+ * nombre del que falta. Si no coincide, se devuelve null y la pantalla lo dice
+ * en vez de inventar un nombre que nadie iria a leer.
+ */
+export function plantillaImagenes(productos: ProductoConFoto[], base: string) {
+  let carpeta: string | null = null;
+  let extension = "";
+  let coinciden = 0;
+  let revisados = 0;
+
+  for (const producto of productos) {
+    const partes = partesUrlImagen(producto.rpr_urlimagen, base);
+    if (!partes) continue;
+
+    // La carpeta se toma de la primera foto y se exige que el resto la comparta:
+    // con el catalogo repartido en varias carpetas no hay una "misma carpeta".
+    if (carpeta === null) carpeta = partes.carpeta;
+    else if (partes.carpeta !== carpeta) return null;
+
+    revisados += 1;
+    const punto = partes.archivo.lastIndexOf(".");
+    const nombre = punto > 0 ? partes.archivo.slice(0, punto) : partes.archivo;
+    if (!extension && punto > 0) extension = partes.archivo.slice(punto);
+    if (nombre.trim() === (producto.KEY_rpr_id ?? "").trim()) coinciden += 1;
+  }
+
+  if (carpeta === null || revisados === 0) return null;
+  // Se exige que la convencion se cumpla en todas las fotos revisadas: con una
+  // sola excepcion ya no es una regla de la que se pueda deducir un nombre.
+  if (coinciden !== revisados) return null;
+
+  return {
+    carpeta,
+    carpetaBig: carpeta ? `${carpeta}/big` : "big",
+    extension: extension || ".jpg",
+  };
+}
