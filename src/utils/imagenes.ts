@@ -47,8 +47,7 @@ export async function redimensionarCuadrado(
 
     return await new Promise<Blob>((resolver, rechazar) => {
       lienzo.toBlob(
-        (blob) =>
-          blob ? resolver(blob) : rechazar(new Error("No se pudo generar la imagen.")),
+        (blob) => (blob ? resolver(blob) : rechazar(new Error("No se pudo generar la imagen."))),
         tipo,
         calidad,
       );
@@ -58,96 +57,157 @@ export async function redimensionarCuadrado(
   }
 }
 
-/**
- * Descompone la URL que guarda `rpr_urlimagen` en la carpeta y el archivo.
- *
- * `FileUpload/Upload` recibe la carpeta relativa a su propia raiz, que es la
- * misma que sirve estas URLs, asi que se recorta el origen y se conserva el
- * resto del path. `base` es la parte del path anterior a la carpeta (por
- * ejemplo "/eva"), que no forma parte del parametro `folder`.
- */
-export function partesUrlImagen(url: string, base: string) {
+/** Ruta del recurso dentro del servidor de imagenes, en segmentos. */
+function segmentos(url: string): string[] | null {
   const limpia = (url ?? "").trim();
   if (!limpia) return null;
-
-  let ruta: string;
   try {
-    ruta = new URL(limpia).pathname;
+    return new URL(limpia).pathname.split("/").filter(Boolean).map(decodeURIComponent);
   } catch {
     return null;
   }
-
-  // Prefijo del servidor de imagenes (VITE_URL_PATH): no va en `folder`.
-  let prefijo = "";
-  try {
-    prefijo = new URL(base).pathname.replace(/\/$/, "");
-  } catch {
-    prefijo = (base ?? "").replace(/^https?:\/\/[^/]+/, "").replace(/\/$/, "");
-  }
-  if (prefijo && ruta.startsWith(prefijo)) ruta = ruta.slice(prefijo.length);
-
-  const corte = ruta.lastIndexOf("/");
-  if (corte < 0) return null;
-
-  const archivo = decodeURIComponent(ruta.slice(corte + 1));
-  const carpeta = ruta.slice(0, corte).replace(/^\/+/, "");
-  if (!archivo) return null;
-
-  return {
-    /** Carpeta relativa, tal como la espera el parametro `folder`. */
-    carpeta,
-    /** Carpeta de la version grande, hermana de la normal (la usa el movil). */
-    carpetaBig: carpeta ? `${carpeta}/big` : "big",
-    archivo,
-  };
 }
 
-/** Producto reducido a lo que hace falta para deducir la convencion. */
+function origenDe(url: string): string {
+  try {
+    return new URL((url ?? "").trim()).origin;
+  } catch {
+    return "";
+  }
+}
+
+/** Producto reducido a lo que hace falta para deducir donde van las fotos. */
 interface ProductoConFoto {
   KEY_rpr_id: string;
   rpr_urlimagen: string;
 }
 
+export interface UbicacionImagenes {
+  /**
+   * Origen de las URLs que sirven las fotos (https://host:puerto). Sale de los
+   * datos porque es lo unico que se sabe correcto: `FileSettings.UrlPath` del
+   * API es la ruta de disco donde escribe, no la direccion web que se guarda
+   * en `rpr_urlimagen`.
+   */
+  origen: string;
+  /**
+   * Carpeta comun a todas las fotos, en segmentos. Es la que el API ya tiene
+   * configurada en `FileSettings.UrlPath`, asi que NO va en el parametro
+   * `folder`: mandarla duplicaba la ruta en el servidor.
+   */
+  raiz: string[];
+  /** Extension con la que se guardan (".jpg" salvo que el catalogo diga otra). */
+  extension: string;
+  /** Si el nombre del archivo es el codigo del producto. */
+  nombrePorCodigo: boolean;
+}
+
 /**
- * Deduce donde y con que nombre guardar la foto de un producto que aun no
- * tiene ninguna.
+ * Deduce de las fotos existentes donde y con que nombre se guardan.
  *
- * No hay forma de saber la convencion por configuracion, asi que se lee de los
- * productos que si tienen foto: si el nombre del archivo coincide con el codigo
- * del producto, la convencion es `{codigo}.{ext}` y se puede construir el
- * nombre del que falta. Si no coincide, se devuelve null y la pantalla lo dice
- * en vez de inventar un nombre que nadie iria a leer.
+ * La carpeta se saca de los datos y no de `VITE_URL_PATH` porque esa variable
+ * puede no coincidir con las URLs reales, y si no coincide el prefijo no se
+ * recorta: el `folder` sale con la ruta completa, el API le antepone la suya y
+ * termina escribiendo en algo como `C:\Imagenes\eva\imagenes\eva\big\...`.
+ *
+ * La raiz es el tramo de carpeta comun a todas las fotos. Si el catalogo las
+ * tiene sueltas en la raiz, `carpeta` queda vacia y el API escribe donde debe;
+ * si estan repartidas en subcarpetas, esas subcarpetas si viajan en `folder`.
  */
-export function plantillaImagenes(productos: ProductoConFoto[], base: string) {
-  let carpeta: string | null = null;
+export function ubicacionImagenes(productos: ProductoConFoto[]): UbicacionImagenes | null {
+  let raiz: string[] | null = null;
+  let origen = "";
   let extension = "";
   let coinciden = 0;
   let revisados = 0;
 
   for (const producto of productos) {
-    const partes = partesUrlImagen(producto.rpr_urlimagen, base);
-    if (!partes) continue;
+    const partes = segmentos(producto.rpr_urlimagen);
+    if (!partes || partes.length === 0) continue;
 
-    // La carpeta se toma de la primera foto y se exige que el resto la comparta:
-    // con el catalogo repartido en varias carpetas no hay una "misma carpeta".
-    if (carpeta === null) carpeta = partes.carpeta;
-    else if (partes.carpeta !== carpeta) return null;
+    const carpeta = partes.slice(0, -1);
+    const archivo = partes[partes.length - 1];
+
+    // Prefijo comun con lo visto hasta ahora.
+    if (raiz === null) {
+      raiz = carpeta;
+    } else {
+      const comun: string[] = [];
+      for (let i = 0; i < Math.min(raiz.length, carpeta.length); i += 1) {
+        if (raiz[i] !== carpeta[i]) break;
+        comun.push(raiz[i]);
+      }
+      raiz = comun;
+    }
+
+    if (!origen) origen = origenDe(producto.rpr_urlimagen);
 
     revisados += 1;
-    const punto = partes.archivo.lastIndexOf(".");
-    const nombre = punto > 0 ? partes.archivo.slice(0, punto) : partes.archivo;
-    if (!extension && punto > 0) extension = partes.archivo.slice(punto);
+    const punto = archivo.lastIndexOf(".");
+    if (!extension && punto > 0) extension = archivo.slice(punto);
+    const nombre = punto > 0 ? archivo.slice(0, punto) : archivo;
     if (nombre.trim() === (producto.KEY_rpr_id ?? "").trim()) coinciden += 1;
   }
 
-  if (carpeta === null || revisados === 0) return null;
-  // Se exige que la convencion se cumpla en todas las fotos revisadas: con una
-  // sola excepcion ya no es una regla de la que se pueda deducir un nombre.
-  if (coinciden !== revisados) return null;
+  if (raiz === null || revisados === 0) return null;
 
   return {
-    carpeta,
-    carpetaBig: carpeta ? `${carpeta}/big` : "big",
+    origen,
+    raiz,
     extension: extension || ".jpg",
+    // Se exige que la convencion se cumpla en todas: con una excepcion ya no es
+    // una regla de la que se pueda deducir el nombre del archivo que falta.
+    nombrePorCodigo: coinciden === revisados,
   };
+}
+
+export interface DestinoImagen {
+  /** Carpeta relativa a la raiz. Vacia = la propia raiz del servidor. */
+  carpeta: string;
+  /** Hermana `big` de la anterior, donde vive la version grande. */
+  carpetaBig: string;
+  archivo: string;
+}
+
+/**
+ * Donde escribir la foto de un producto.
+ *
+ * Con foto previa se reemplaza su archivo, conservando nombre y subcarpeta, asi
+ * la URL guardada sigue siendo valida. Sin foto previa se crea en la raiz con
+ * el nombre que marca la convencion del catalogo.
+ */
+export function destinoImagen(
+  urlActual: string,
+  codigo: string,
+  ubicacion: UbicacionImagenes | null,
+): DestinoImagen | null {
+  if (!ubicacion) return null;
+
+  const partes = segmentos(urlActual);
+  const conBig = (carpeta: string): DestinoImagen["carpetaBig"] =>
+    carpeta ? `${carpeta}/big` : "big";
+
+  if (partes && partes.length > 0) {
+    const archivo = partes[partes.length - 1];
+    // Lo que sobra de la carpeta despues de la raiz; normalmente nada.
+    const carpeta = partes.slice(ubicacion.raiz.length, -1).join("/");
+    return { carpeta, carpetaBig: conBig(carpeta), archivo };
+  }
+
+  const id = (codigo ?? "").trim();
+  if (!id || !ubicacion.nombrePorCodigo) return null;
+  return { carpeta: "", carpetaBig: "big", archivo: `${id}${ubicacion.extension}` };
+}
+
+/**
+ * URL con la que hay que dejar `rpr_urlimagen` tras crear una foto.
+ *
+ * Se arma con el origen y la raiz leidos de las fotos que ya funcionan, no con
+ * la configuracion del API: alli `UrlPath` es la carpeta de disco donde se
+ * escribe y guardarla como URL dejaria un `C:\...` en la base.
+ */
+export function urlDeImagen(destino: DestinoImagen, ubicacion: UbicacionImagenes | null) {
+  if (!ubicacion || !ubicacion.origen) return "";
+  const tramos = [...ubicacion.raiz, ...(destino.carpeta ? destino.carpeta.split("/") : []), destino.archivo];
+  return `${ubicacion.origen}/${tramos.filter(Boolean).map(encodeURIComponent).join("/")}`;
 }

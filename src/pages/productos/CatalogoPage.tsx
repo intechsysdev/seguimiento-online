@@ -8,8 +8,7 @@ import { MultiSelect } from "../../components/ui/MultiSelect";
 import { useApi } from "../../hooks/useApi";
 import { useAuth } from "../../store/AuthContext";
 import { productosEvaService } from "../../services/eva/productosEvaService";
-import { URL_PATH } from "../../api/http";
-import { plantillaImagenes } from "../../utils/imagenes";
+import { ubicacionImagenes } from "../../utils/imagenes";
 import type { MobProducto } from "../../types/eva";
 import type { TenantDto } from "../../types/seguridad";
 import { CambiarFoto } from "./CambiarFoto";
@@ -81,8 +80,8 @@ export function CatalogoPage() {
     calcula sobre el catalogo completo y no sobre lo filtrado: la convencion es
     del catalogo, y con un filtro estrecho podria quedarse sin muestras.
   */
-  const plantilla = useMemo(
-    () => plantillaImagenes(productos.datos ?? [], URL_PATH ?? ""),
+  const ubicacion = useMemo(
+    () => ubicacionImagenes(productos.datos ?? []),
     [productos.datos],
   );
 
@@ -216,7 +215,7 @@ export function CatalogoPage() {
             producto={detalle}
             tenant={tenant}
             cmpy={cmpy}
-            plantilla={plantilla}
+            ubicacion={ubicacion}
             onFotoNueva={() => productos.recargar()}
             linea={nombreLinea(detalle.rpr_linea)}
             sublinea={nombreSublinea(detalle.rpr_linea, detalle.rpr_subl)}
@@ -232,7 +231,7 @@ function FichaProducto({
   producto,
   tenant,
   cmpy,
-  plantilla,
+  ubicacion,
   onFotoNueva,
   linea,
   sublinea,
@@ -240,7 +239,7 @@ function FichaProducto({
   producto: MobProducto;
   tenant: TenantDto;
   cmpy: string;
-  plantilla: ReturnType<typeof plantillaImagenes>;
+  ubicacion: ReturnType<typeof ubicacionImagenes>;
   /** Tras crear una foto hay que releer el catalogo: cambio rpr_urlimagen. */
   onFotoNueva: () => void;
   linea: string;
@@ -294,7 +293,7 @@ function FichaProducto({
         urlActual={producto.rpr_urlimagen}
         codigo={producto.KEY_rpr_id}
         cmpy={cmpy}
-        plantilla={plantilla}
+        ubicacion={ubicacion}
         onSubida={() => {
           setVersion((n) => n + 1);
           if (!(producto.rpr_urlimagen ?? "").trim()) onFotoNueva();

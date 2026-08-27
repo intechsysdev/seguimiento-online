@@ -69,14 +69,15 @@ export const productosEvaService = {
    *
    * Solo hace falta para un producto que no tenia foto: al reemplazar una
    * existente el nombre no cambia y la URL guardada sigue siendo valida.
-   * Se manda la ruta relativa ("carpeta/archivo.jpg"); la base la pone el API
-   * desde la misma configuracion con la que FileUpload escribe el archivo.
+   * La URL la arma el SPA a partir de las fotos que ya se muestran: la
+   * configuracion del API (`FileSettings.UrlPath`) es la carpeta de disco donde
+   * escribe, no la direccion web con la que se sirven las imagenes.
    */
-  actualizarImagen: (tenant: TenantDto, cmpy: string, id: string, ruta: string) =>
+  actualizarImagen: (tenant: TenantDto, cmpy: string, id: string, url: string) =>
     tenantHttp.post<number>(tenant, "api/v1/Productos/UpdateImagen", {
       cmpy,
       id: id.trim(),
-      ruta,
+      url,
     }),
 
   /** Precios de cada producto dentro de una lista. */

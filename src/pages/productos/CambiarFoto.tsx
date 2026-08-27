@@ -1,15 +1,15 @@
 import { useRef, useState } from "react";
 import { Alert } from "../../components/ui/Alert";
 import { Button } from "../../components/ui/Button";
-import { URL_PATH } from "../../api/http";
 import { productosEvaService } from "../../services/eva/productosEvaService";
 import type { TenantDto } from "../../types/seguridad";
 import {
   LADO_BIG,
   LADO_NORMAL,
-  partesUrlImagen,
-  plantillaImagenes,
+  destinoImagen,
   redimensionarCuadrado,
+  urlDeImagen,
+  type UbicacionImagenes,
 } from "../../utils/imagenes";
 import estilos from "./Productos.module.css";
 
@@ -21,8 +21,8 @@ interface CambiarFotoProps {
   codigo: string;
   /** Compañía activa: la necesita el API para ubicar el producto. */
   cmpy: string;
-  /** Convencion deducida del catalogo (ver `plantillaImagenes`). */
-  plantilla: ReturnType<typeof plantillaImagenes>;
+  /** Donde guarda las fotos el catalogo (ver `ubicacionImagenes`). */
+  ubicacion: UbicacionImagenes | null;
   /** Se llama al terminar, para que la ficha vuelva a pedir la imagen. */
   onSubida: () => void;
 }
@@ -43,7 +43,7 @@ export function CambiarFoto({
   urlActual,
   codigo,
   cmpy,
-  plantilla,
+  ubicacion,
   onSubida,
 }: CambiarFotoProps) {
   const entrada = useRef<HTMLInputElement>(null);
@@ -51,22 +51,8 @@ export function CambiarFoto({
   const [error, setError] = useState<string | null>(null);
   const [listo, setListo] = useState(false);
 
-  /*
-    Con foto previa se reemplaza su archivo. Sin ella se crea uno nuevo en la
-    misma carpeta del resto del catalogo, con el nombre que marca la convencion
-    deducida de los productos que si tienen foto.
-  */
-  const propias = partesUrlImagen(urlActual, URL_PATH ?? "");
-  const esNueva = !propias;
-  const partes =
-    propias ??
-    (plantilla && (codigo ?? "").trim()
-      ? {
-          carpeta: plantilla.carpeta,
-          carpetaBig: plantilla.carpetaBig,
-          archivo: `${codigo.trim()}${plantilla.extension}`,
-        }
-      : null);
+  const esNueva = !(urlActual ?? "").trim();
+  const partes = destinoImagen(urlActual, codigo, ubicacion);
 
   if (!partes) {
     return (
@@ -124,12 +110,9 @@ export function CambiarFoto({
         el nombre no cambia y la URL guardada ya es correcta.
       */
       if (esNueva) {
-        await productosEvaService.actualizarImagen(
-          tenant,
-          cmpy,
-          codigo,
-          `${partes!.carpeta}/${partes!.archivo}`,
-        );
+        const url = urlDeImagen(partes!, ubicacion);
+        if (!url) throw new Error("No se pudo componer la URL de la foto.");
+        await productosEvaService.actualizarImagen(tenant, cmpy, codigo, url);
       }
 
       setListo(true);
@@ -166,8 +149,9 @@ export function CambiarFoto({
 
       <p className={estilos.notaFoto}>
         Se guardan dos versiones con el nombre <code>{partes.archivo}</code>:{" "}
-        {LADO_NORMAL}×{LADO_NORMAL} en <code>{partes.carpeta || "/"}</code> y {LADO_BIG}×{LADO_BIG}{" "}
-        en <code>{partes.carpetaBig}</code>.
+        {LADO_NORMAL}×{LADO_NORMAL} en{" "}
+        {partes.carpeta ? <code>{partes.carpeta}</code> : "la carpeta de las fotos"} y {LADO_BIG}×
+        {LADO_BIG} en <code>{partes.carpetaBig}</code>.
       </p>
 
       {error ? <Alert tone="critical">{error}</Alert> : null}
