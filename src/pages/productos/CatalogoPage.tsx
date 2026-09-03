@@ -2,15 +2,17 @@ import { useMemo, useState } from "react";
 import { PageHeader } from "../../components/layout/PageHeader";
 import { Badge } from "../../components/ui/Badge";
 import { Alert } from "../../components/ui/Alert";
+import { Button } from "../../components/ui/Button";
 import { Modal } from "../../components/ui/Modal";
 import { DataTable, type Columna } from "../../components/ui/DataTable";
 import { MultiSelect } from "../../components/ui/MultiSelect";
 import { useApi } from "../../hooks/useApi";
 import { useAuth } from "../../store/AuthContext";
 import { productosEvaService } from "../../services/eva/productosEvaService";
-import { ubicacionImagenes } from "../../utils/imagenes";
+import { ubicacionImagenes, urlConVersion } from "../../utils/imagenes";
 import type { MobProducto } from "../../types/eva";
 import type { TenantDto } from "../../types/seguridad";
+import { AsignarFotos } from "./AsignarFotos";
 import { CambiarFoto } from "./CambiarFoto";
 import { FotoProducto } from "./FotoProducto";
 import formularios from "../seguridad/Formularios.module.css";
@@ -37,6 +39,14 @@ export function CatalogoPage() {
   const [lineasSel, setLineasSel] = useState<string[]>([]);
   const [sublineasSel, setSublineasSel] = useState<string[]>([]);
   const [detalle, setDetalle] = useState<MobProducto | null>(null);
+  const [marcados, setMarcados] = useState<string[]>([]);
+  const [asignando, setAsignando] = useState(false);
+  /*
+    Las fotos se reemplazan conservando el nombre, asi que la URL no cambia y el
+    navegador serviria la anterior desde su cache. El contador se anexa a la URL
+    de la miniatura para forzar la recarga sin tocar el dato guardado.
+  */
+  const [version, setVersion] = useState(0);
 
   /** Codigo de linea -> descripcion, para no mostrar solo el codigo. */
   const nombreLinea = useMemo(() => {
@@ -85,6 +95,16 @@ export function CatalogoPage() {
     [productos.datos],
   );
 
+  /*
+    Se resuelve contra el catalogo completo y no contra `filas`: lo marcado se
+    conserva al cambiar de filtro, y asi se puede armar la seleccion de a grupos
+    (primero una linea, despues otra).
+  */
+  const seleccionados = useMemo(() => {
+    const claves = new Set(marcados);
+    return (productos.datos ?? []).filter((p) => claves.has(claveProducto(p)));
+  }, [productos.datos, marcados]);
+
   const columnas: Columna<MobProducto>[] = [
     /*
       La foto y su accion abren la tabla y quedan ancladas al borde izquierdo.
@@ -103,7 +123,7 @@ export function CatalogoPage() {
             title="Ver la ficha del producto"
             aria-label={`Ficha de ${p.rpr_desc}`}
           >
-            <FotoProducto url={p.rpr_urlimagen} alt={p.rpr_desc} />
+            <FotoProducto url={urlConVersion(p.rpr_urlimagen, version)} alt={p.rpr_desc} />
           </button>
           <button type="button" className={estilos.accionFoto} onClick={() => setDetalle(p)}>
             Ver / cambiar foto
@@ -196,11 +216,31 @@ export function CatalogoPage() {
       <DataTable
         columnas={columnas}
         filas={filas}
-        claveFila={(p) => `${p.KEY_rpr_cmpy}-${(p.KEY_rpr_id ?? "").trim()}`}
+        claveFila={claveProducto}
         cargando={productos.cargando}
         vacio="No hay productos para los filtros seleccionados."
         porPagina={25}
         exportar="productos"
+        seleccion={marcados}
+        onSeleccion={setMarcados}
+        acciones={
+          <>
+            {marcados.length > 0 ? (
+              <Button size="sm" variant="ghost" onClick={() => setMarcados([])}>
+                Quitar selección
+              </Button>
+            ) : null}
+            <Button
+              size="sm"
+              variant="primary"
+              disabled={seleccionados.length === 0}
+              onClick={() => setAsignando(true)}
+            >
+              Asignar foto
+              {seleccionados.length > 0 ? ` (${seleccionados.length})` : ""}
+            </Button>
+          </>
+        }
       />
 
       <Modal
@@ -216,14 +256,47 @@ export function CatalogoPage() {
             tenant={tenant}
             cmpy={cmpy}
             ubicacion={ubicacion}
-            onFotoNueva={() => productos.recargar()}
+            onFotoNueva={() => {
+              setVersion((n) => n + 1);
+              productos.recargar();
+            }}
             linea={nombreLinea(detalle.rpr_linea)}
             sublinea={nombreSublinea(detalle.rpr_linea, detalle.rpr_subl)}
           />
         ) : null}
       </Modal>
+
+      <Modal
+        abierto={asignando}
+        titulo="Asignar una foto a varios productos"
+        descripcion={`${seleccionados.length} seleccionado${seleccionados.length === 1 ? "" : "s"}`}
+        onCerrar={() => setAsignando(false)}
+        ancho="46rem"
+      >
+        {tenant ? (
+          <AsignarFotos
+            tenant={tenant}
+            cmpy={cmpy}
+            seleccionados={seleccionados}
+            catalogo={productos.datos ?? []}
+            ubicacion={ubicacion}
+            onTerminar={() => {
+              setVersion((n) => n + 1);
+              productos.recargar();
+            }}
+          />
+        ) : null}
+      </Modal>
     </>
   );
+}
+
+/**
+ * Clave de fila. Fuera del componente para que no cambie de identidad en cada
+ * render: `DataTable` la usa dentro de un `useMemo` para calcular la seleccion.
+ */
+function claveProducto(producto: MobProducto) {
+  return `${producto.KEY_rpr_cmpy}-${(producto.KEY_rpr_id ?? "").trim()}`;
 }
 
 /** Cuerpo de la ficha: la foto grande y los campos que traen contenido. */
@@ -240,20 +313,14 @@ function FichaProducto({
   tenant: TenantDto;
   cmpy: string;
   ubicacion: ReturnType<typeof ubicacionImagenes>;
-  /** Tras crear una foto hay que releer el catalogo: cambio rpr_urlimagen. */
+  /** Tras subir una foto hay que refrescar la tabla y releer `rpr_urlimagen`. */
   onFotoNueva: () => void;
   linea: string;
   sublinea: string;
 }) {
-  /*
-    El archivo se reemplaza conservando el nombre, asi que la URL no cambia y el
-    navegador serviria la foto vieja de su cache. El contador rompe el cache sin
-    tocar el dato: solo afecta a esta ficha.
-  */
+  // Rompe la cache del navegador dentro de la ficha: la URL no cambia al
+  // reemplazar el archivo, asi que sin esto se veria la foto anterior.
   const [version, setVersion] = useState(0);
-  const url = producto.rpr_urlimagen
-    ? `${producto.rpr_urlimagen}${producto.rpr_urlimagen.includes("?") ? "&" : "?"}v=${version}`
-    : producto.rpr_urlimagen;
   const datos: [string, string][] = [
     // Descripcion y codigo juntos: el codigo solo no dice nada al leer la ficha.
     ["Línea", [linea, (producto.rpr_linea ?? "").trim()].filter(Boolean).join(" · ")],
@@ -265,7 +332,11 @@ function FichaProducto({
 
   return (
     <div className={estilos.ficha}>
-      <FotoProducto url={version ? url : producto.rpr_urlimagen} alt={producto.rpr_desc} tam={200} />
+      <FotoProducto
+        url={urlConVersion(producto.rpr_urlimagen, version)}
+        alt={producto.rpr_desc}
+        tam={200}
+      />
 
       <dl className={estilos.datos}>
         {datos
@@ -296,7 +367,7 @@ function FichaProducto({
         ubicacion={ubicacion}
         onSubida={() => {
           setVersion((n) => n + 1);
-          if (!(producto.rpr_urlimagen ?? "").trim()) onFotoNueva();
+          onFotoNueva();
         }}
       />
     </div>

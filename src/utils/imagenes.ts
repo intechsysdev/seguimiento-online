@@ -170,6 +170,19 @@ export interface DestinoImagen {
 }
 
 /**
+ * Archivo propio del producto: la raiz del servidor y su codigo por nombre.
+ *
+ * Es lo que hace que la foto quede referenciada al producto y no a un archivo
+ * suelto: dos productos con la misma imagen terminan en dos archivos, y cambiar
+ * despues la de uno no toca la del otro.
+ */
+function destinoPorCodigo(codigo: string, ubicacion: UbicacionImagenes): DestinoImagen | null {
+  const id = (codigo ?? "").trim();
+  if (!id) return null;
+  return { carpeta: "", carpetaBig: "big", archivo: `${id}${ubicacion.extension}` };
+}
+
+/**
  * Donde escribir la foto de un producto.
  *
  * Con foto previa se reemplaza su archivo, conservando nombre y subcarpeta, asi
@@ -184,19 +197,18 @@ export function destinoImagen(
   if (!ubicacion) return null;
 
   const partes = segmentos(urlActual);
-  const conBig = (carpeta: string): DestinoImagen["carpetaBig"] =>
-    carpeta ? `${carpeta}/big` : "big";
 
   if (partes && partes.length > 0) {
     const archivo = partes[partes.length - 1];
     // Lo que sobra de la carpeta despues de la raiz; normalmente nada.
     const carpeta = partes.slice(ubicacion.raiz.length, -1).join("/");
-    return { carpeta, carpetaBig: conBig(carpeta), archivo };
+    return { carpeta, carpetaBig: carpeta ? `${carpeta}/big` : "big", archivo };
   }
 
-  const id = (codigo ?? "").trim();
-  if (!id || !ubicacion.nombrePorCodigo) return null;
-  return { carpeta: "", carpetaBig: "big", archivo: `${id}${ubicacion.extension}` };
+  // Sin foto previa hay que inventar el nombre, y solo se hace si el catalogo
+  // demuestra la convencion: si no, no hay de donde deducirlo.
+  if (!ubicacion.nombrePorCodigo) return null;
+  return destinoPorCodigo(codigo, ubicacion);
 }
 
 /**
@@ -210,4 +222,107 @@ export function urlDeImagen(destino: DestinoImagen, ubicacion: UbicacionImagenes
   if (!ubicacion || !ubicacion.origen) return "";
   const tramos = [...ubicacion.raiz, ...(destino.carpeta ? destino.carpeta.split("/") : []), destino.archivo];
   return `${ubicacion.origen}/${tramos.filter(Boolean).map(encodeURIComponent).join("/")}`;
+}
+
+/** Ruta del archivo dentro del servidor, para saber si dos productos comparten foto. */
+function claveArchivo(url: string): string {
+  const partes = segmentos(url);
+  return partes ? partes.join("/").toLowerCase() : "";
+}
+
+export interface AsignacionImagen {
+  /** Codigo del producto, sin el relleno que trae el AS/400. */
+  codigo: string;
+  /** Descripcion, solo para poder nombrarlo en los avisos. */
+  descripcion: string;
+  /** Donde escribir. `null` = hay que omitirlo, `motivo` dice por que. */
+  destino: DestinoImagen | null;
+  /**
+   * URL con la que hay que dejar `rpr_urlimagen`. Vacia cuando se reemplaza el
+   * archivo que el producto ya tenia: alli la URL guardada sigue sirviendo.
+   */
+  url: string;
+  motivo?: string;
+  /** Recibe archivo nuevo porque el que usaba lo comparte con otro producto. */
+  separado?: boolean;
+}
+
+/**
+ * Reparte una misma imagen entre varios productos, uno por archivo.
+ *
+ * La regla es que cada producto quede con su propia referencia aunque el
+ * adjunto sea el mismo, para que despues se pueda cambiar la foto de uno sin
+ * arrastrar a los demas. De ahi los tres casos:
+ *
+ * - ya tiene archivo propio: se reemplaza y la URL no cambia;
+ * - no tiene foto: se crea uno con su codigo y se actualiza `rpr_urlimagen`;
+ * - comparte archivo con otro producto del catalogo: tambien se le crea uno
+ *   propio, porque escribir sobre el compartido le cambiaria la foto al otro.
+ *
+ * El reparto se mide contra el catalogo completo y no contra la seleccion: el
+ * producto que comparte el archivo puede no estar seleccionado y aun asi se le
+ * cambiaria la foto.
+ */
+export function planAsignacion(
+  seleccionados: (ProductoConFoto & { rpr_desc?: string })[],
+  catalogo: ProductoConFoto[],
+  ubicacion: UbicacionImagenes | null,
+): AsignacionImagen[] {
+  const usos = new Map<string, number>();
+  for (const producto of catalogo) {
+    const clave = claveArchivo(producto.rpr_urlimagen);
+    if (clave) usos.set(clave, (usos.get(clave) ?? 0) + 1);
+  }
+
+  return seleccionados.map((producto) => {
+    const codigo = (producto.KEY_rpr_id ?? "").trim();
+    const descripcion = (producto.rpr_desc ?? "").trim();
+    const clave = claveArchivo(producto.rpr_urlimagen);
+    const compartida = clave !== "" && (usos.get(clave) ?? 0) > 1;
+
+    // Con archivo compartido no se pide la convencion de nombres: el archivo es
+    // nuevo, el nombre sale del codigo y la URL se escribe en la base, asi que
+    // no hay nada que deducir.
+    const destino = compartida
+      ? ubicacion
+        ? destinoPorCodigo(codigo, ubicacion)
+        : null
+      : destinoImagen(producto.rpr_urlimagen, codigo, ubicacion);
+
+    if (!destino) {
+      return {
+        codigo,
+        descripcion,
+        destino: null,
+        url: "",
+        motivo: !ubicacion
+          ? "el catálogo no tiene fotos de las que leer la carpeta"
+          : !codigo
+            ? "el producto llegó sin código"
+            : "no tiene foto y el catálogo no nombra las fotos por código",
+      };
+    }
+
+    const nueva = clave === "" || compartida;
+    return {
+      codigo,
+      descripcion,
+      destino,
+      url: nueva ? urlDeImagen(destino, ubicacion) : "",
+      separado: compartida,
+    };
+  });
+}
+
+/**
+ * Rompe la cache del navegador tras reemplazar una foto.
+ *
+ * Al conservar el nombre del archivo la URL no cambia, asi que el navegador
+ * seguiria mostrando la anterior. El contador va como parametro y no toca el
+ * dato guardado.
+ */
+export function urlConVersion(url: string, version: number): string {
+  const limpia = (url ?? "").trim();
+  if (!limpia || version <= 0) return limpia;
+  return `${limpia}${limpia.includes("?") ? "&" : "?"}v=${version}`;
 }

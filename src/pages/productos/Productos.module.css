@@ -118,3 +118,65 @@
   background: var(--color-accent-soft);
   color: var(--color-accent);
 }
+
+/* ---- Asignar una foto a varios productos ---- */
+
+.masiva {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  align-items: flex-start;
+}
+
+.masiva > button,
+.masiva > progress {
+  align-self: stretch;
+}
+
+/* Lista de destinos: deja ver que cada producto queda con su propio archivo. */
+.listaDestinos {
+  width: 100%;
+  max-height: 13rem;
+  overflow-y: auto;
+  margin: 0;
+  padding: var(--space-2);
+  list-style: none;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface-sunken);
+  font-size: var(--text-xs);
+}
+
+.listaDestinos li {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-2);
+  padding: 0.2rem 0.25rem;
+}
+
+.destinoNombre {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--color-ink-muted);
+}
+
+.destinoArchivo {
+  color: var(--color-ink);
+}
+
+.marcaNueva {
+  border-radius: var(--radius-pill);
+  background: var(--color-accent-soft);
+  color: var(--color-accent);
+  padding: 0 0.45rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.progreso {
+  width: 100%;
+  height: 0.4rem;
+}

@@ -38,6 +38,13 @@ interface DataTableProps<T> {
    * CSV y Excel, equivalentes a los de DataTables en el MVC.
    */
   exportar?: string;
+  /**
+   * Claves marcadas (las de `claveFila`). Al pasarla junto con `onSeleccion`
+   * aparece la columna de casillas, anclada a la izquierda para que siga a la
+   * vista con scroll horizontal.
+   */
+  seleccion?: string[];
+  onSeleccion?: (claves: string[]) => void;
 }
 
 /** Reemplaza a jquery.dataTables, que el MVC inicializaba en cada vista. */
@@ -52,6 +59,8 @@ export function DataTable<T>({
   porPagina = 15,
   acciones,
   exportar,
+  seleccion,
+  onSeleccion,
 }: DataTableProps<T>) {
   const [busqueda, setBusqueda] = useState("");
   const [pagina, setPagina] = useState(0);
@@ -85,6 +94,37 @@ export function DataTable<T>({
       return orden.asc ? comparacion : -comparacion;
     });
   }, [filas, columnas, busqueda, orden]);
+
+  const seleccionable = Boolean(seleccion && onSeleccion);
+  const marcadas = useMemo(() => new Set(seleccion ?? []), [seleccion]);
+
+  /*
+    La casilla de la cabecera actua sobre todo lo filtrado y no sobre la pagina
+    visible: filtrar es la forma de acotar, y marcar pagina por pagina obligaria
+    a recorrer el paginador entero.
+  */
+  const clavesFiltradas = useMemo(() => filtradas.map(claveFila), [filtradas, claveFila]);
+  const marcadasEnFiltro = clavesFiltradas.filter((clave) => marcadas.has(clave)).length;
+  const todasMarcadas = clavesFiltradas.length > 0 && marcadasEnFiltro === clavesFiltradas.length;
+
+  function alternarFila(clave: string) {
+    if (!onSeleccion) return;
+    const proxima = new Set(marcadas);
+    if (proxima.has(clave)) proxima.delete(clave);
+    else proxima.add(clave);
+    onSeleccion([...proxima]);
+  }
+
+  function alternarTodas() {
+    if (!onSeleccion) return;
+    // Lo marcado fuera del filtro se conserva: asi se puede ir sumando de a
+    // grupos, cambiando el filtro entre uno y otro.
+    const proxima = new Set(marcadas);
+    clavesFiltradas.forEach((clave) =>
+      todasMarcadas ? proxima.delete(clave) : proxima.add(clave),
+    );
+    onSeleccion([...proxima]);
+  }
 
   const totalPaginas = Math.max(1, Math.ceil(filtradas.length / porPagina));
   const paginaActual = Math.min(pagina, totalPaginas - 1);
@@ -165,9 +205,28 @@ export function DataTable<T>({
         <p className={styles.vacio}>{error ? "No se pudieron cargar los datos." : vacio}</p>
       ) : (
         <div className={styles.scroll}>
-          <table className={styles.tabla}>
+          <table
+            className={[styles.tabla, seleccionable ? styles.conSeleccion : ""]
+              .filter(Boolean)
+              .join(" ")}
+          >
             <thead>
               <tr>
+                {seleccionable ? (
+                  <th className={styles.seleccion}>
+                    <input
+                      type="checkbox"
+                      checked={todasMarcadas}
+                      // Marcado parcial: hay filas elegidas pero no todas.
+                      ref={(casilla) => {
+                        if (casilla) casilla.indeterminate = marcadasEnFiltro > 0 && !todasMarcadas;
+                      }}
+                      onChange={alternarTodas}
+                      aria-label="Seleccionar todas las filas del filtro"
+                      title="Seleccionar todas las filas del filtro"
+                    />
+                  </th>
+                ) : null}
                 {columnas.map((columna, indice) => (
                   <th
                     key={columna.titulo}
@@ -198,6 +257,16 @@ export function DataTable<T>({
             <tbody>
               {visibles.map((fila) => (
                 <tr key={claveFila(fila)}>
+                  {seleccionable ? (
+                    <td className={styles.seleccion}>
+                      <input
+                        type="checkbox"
+                        checked={marcadas.has(claveFila(fila))}
+                        onChange={() => alternarFila(claveFila(fila))}
+                        aria-label="Seleccionar la fila"
+                      />
+                    </td>
+                  ) : null}
                   {columnas.map((columna) => (
                     <td
                       key={columna.titulo}

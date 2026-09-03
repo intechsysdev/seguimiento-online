@@ -212,3 +212,43 @@ th.fija {
   background: var(--color-accent-soft);
   color: var(--color-accent);
 }
+
+/*
+  Columna de casillas. Va anclada como las de `Columna.fija`, pero antes que
+  ellas: con `conSeleccion` las demas ancladas se corren su ancho a la derecha
+  para no quedar una encima de la otra.
+*/
+.seleccion {
+  position: sticky;
+  left: 0;
+  z-index: 1;
+  /* Ancho fijo por los tres lados: es el mismo valor que usa `left` en las
+     demas columnas ancladas, y si no coincide se montan una sobre otra. */
+  width: 3.5rem;
+  min-width: 3.5rem;
+  max-width: 3.5rem;
+  background: var(--color-surface);
+  text-align: center;
+  padding-left: var(--space-3);
+  padding-right: var(--space-2);
+}
+
+th.seleccion {
+  z-index: 2;
+  background: var(--color-surface-sunken);
+}
+
+.tabla tbody tr:hover td.seleccion {
+  background: var(--color-surface-sunken);
+}
+
+.seleccion input {
+  width: 1rem;
+  height: 1rem;
+  accent-color: var(--color-accent);
+  cursor: pointer;
+}
+
+.conSeleccion .fijaIzquierda {
+  left: 3.5rem;
+}
