@@ -9,6 +9,7 @@ import {
   IconSun,
   IconX,
 } from "../icons";
+import { Asistente } from "../asistente/Asistente";
 import { LogoMarca } from "../Logo";
 import { PieLegal } from "../PieLegal";
 import { Avatar } from "../ui/Avatar";
@@ -255,6 +256,10 @@ export function AppShell() {
           <PieLegal />
         </footer>
       </div>
+
+      {/* La `key` reinicia la conversación al cambiar de compañía: el asistente
+          consulta una sola compañía por conversación. */}
+      <Asistente key={session?.tenantActual ?? "sin-compania"} />
     </div>
   );
 }

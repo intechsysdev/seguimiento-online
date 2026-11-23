@@ -39,6 +39,22 @@ export function setTokenProvider(provider: () => string | null) {
   tokenProvider = provider;
 }
 
+/**
+ * Para las llamadas que no pueden pasar por `request` porque leen la respuesta
+ * por partes (el chat del asistente): `request` espera el cuerpo completo.
+ */
+export function tokenDeSesion() {
+  return tokenProvider();
+}
+
+export function avisarSesionExpirada() {
+  onUnauthorized?.();
+}
+
+export function urlSeguridad(path: string) {
+  return joinUrl(API_SEGURIDAD, path);
+}
+
 export interface RequestOptions {
   method?: "GET" | "POST" | "PUT" | "DELETE";
   body?: unknown;

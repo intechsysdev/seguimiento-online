@@ -1,0 +1,377 @@
+/* Por encima del sidebar movil (30) y de los desplegables (40); por debajo de los dialogos de confirmacion (100). */
+.lanzador,
+.panel {
+  position: fixed;
+  right: max(var(--space-5), env(safe-area-inset-right));
+  bottom: max(var(--space-5), env(safe-area-inset-bottom));
+  z-index: 50;
+}
+
+.lanzador {
+  width: 3.25rem;
+  height: 3.25rem;
+  display: grid;
+  place-items: center;
+  border: none;
+  border-radius: var(--radius-pill);
+  background: var(--color-accent);
+  color: var(--color-accent-contrast);
+  box-shadow: var(--shadow-lg);
+  cursor: pointer;
+  transition: background-color 0.15s ease, transform 0.15s ease;
+}
+
+.lanzador:hover {
+  background: var(--color-accent-strong);
+  transform: translateY(-2px);
+}
+
+.lanzador[hidden] {
+  display: none;
+}
+
+.panel {
+  width: min(27rem, 100vw - 2rem);
+  height: min(40rem, 100dvh - 2 * var(--space-5));
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background: var(--color-surface);
+  color: var(--color-ink);
+  box-shadow: var(--shadow-lg);
+  font-size: var(--text-sm);
+}
+
+.amplio {
+  width: min(58rem, 100vw - 2rem);
+  height: min(54rem, 100dvh - 2 * var(--space-5));
+}
+
+.cabecera {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  padding: var(--space-3) var(--space-3) var(--space-3) var(--space-4);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.titulos {
+  flex: 1;
+  min-width: 0;
+}
+
+.titulo {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: var(--text-md);
+  line-height: 1.2;
+}
+
+.subtitulo {
+  margin: 0;
+  font-size: var(--text-xs);
+  color: var(--color-ink-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.accion {
+  width: 2.25rem;
+  height: 2.25rem;
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  border: none;
+  border-radius: var(--radius-sm);
+  background: none;
+  color: var(--color-ink-muted);
+  cursor: pointer;
+}
+
+.accion:hover:not(:disabled) {
+  background: var(--color-surface-sunken);
+  color: var(--color-ink);
+}
+
+.accion:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.accion[aria-pressed="true"] {
+  color: var(--color-accent);
+}
+
+.mensajes {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: var(--space-4);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.delUsuario,
+.delAsistente {
+  border-radius: var(--radius-md);
+  padding: var(--space-2) var(--space-3);
+  line-height: 1.5;
+  min-width: 0;
+}
+
+.delUsuario {
+  align-self: flex-end;
+  max-width: 85%;
+  background: var(--color-accent);
+  color: var(--color-accent-contrast);
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+}
+
+.delUsuario p {
+  margin: 0;
+}
+
+/* A todo el ancho: las respuestas suelen traer tablas. */
+.delAsistente {
+  align-self: stretch;
+  background: var(--color-surface-sunken);
+  display: grid;
+  gap: var(--space-2);
+}
+
+.aviso {
+  margin: 0;
+  font-size: var(--text-xs);
+  color: var(--color-warning);
+}
+
+.error {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-sm);
+  background: var(--color-critical-soft);
+  color: var(--color-critical);
+}
+
+.error p {
+  margin: 0;
+  flex: 1 1 12rem;
+}
+
+.error button {
+  border: 1px solid currentColor;
+  border-radius: var(--radius-sm);
+  background: none;
+  color: inherit;
+  font: inherit;
+  font-weight: 600;
+  padding: 2px var(--space-2);
+  cursor: pointer;
+}
+
+.actividad {
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  color: var(--color-ink-muted);
+  font-size: var(--text-xs);
+}
+
+.puntos {
+  display: inline-flex;
+  gap: 3px;
+}
+
+.puntos span {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: currentColor;
+  animation: pulso 1.2s ease-in-out infinite;
+}
+
+.puntos span:nth-child(2) {
+  animation-delay: 0.15s;
+}
+
+.puntos span:nth-child(3) {
+  animation-delay: 0.3s;
+}
+
+@keyframes pulso {
+  0%,
+  80%,
+  100% {
+    opacity: 0.25;
+  }
+  40% {
+    opacity: 1;
+  }
+}
+
+.vacio {
+  margin: auto 0;
+  display: grid;
+  gap: var(--space-4);
+}
+
+.saludo {
+  margin: 0;
+  color: var(--color-ink-muted);
+  line-height: 1.5;
+}
+
+.sugerencias {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: var(--space-2);
+}
+
+.sugerencias button {
+  width: 100%;
+  text-align: left;
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-md);
+  background: none;
+  color: var(--color-ink);
+  font: inherit;
+  padding: var(--space-2) var(--space-3);
+  cursor: pointer;
+}
+
+.sugerencias button:hover {
+  border-color: var(--color-accent);
+  background: var(--color-accent-soft);
+}
+
+.noDisponible {
+  margin: auto 0;
+  display: flex;
+  gap: var(--space-2);
+  align-items: flex-start;
+  padding: var(--space-3);
+  border-radius: var(--radius-md);
+  background: var(--color-warning-soft);
+  color: var(--color-warning);
+}
+
+.noDisponible p {
+  margin: 0;
+}
+
+.noDisponible svg {
+  flex-shrink: 0;
+}
+
+.redactar {
+  display: flex;
+  align-items: flex-end;
+  gap: var(--space-2);
+  padding: var(--space-3) var(--space-3) var(--space-2);
+  border-top: 1px solid var(--color-border);
+}
+
+.campo {
+  flex: 1;
+  min-width: 0;
+  resize: none;
+  max-height: 8rem;
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  color: var(--color-ink);
+  font: inherit;
+  /* 16px: con menos, iOS hace zoom a la pagina al enfocar el campo. */
+  font-size: max(1rem, var(--text-sm));
+  line-height: 1.4;
+  padding: var(--space-2) var(--space-3);
+}
+
+.campo::placeholder {
+  color: var(--color-ink-faint);
+}
+
+.enviar {
+  width: 2.5rem;
+  height: 2.5rem;
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  border: none;
+  border-radius: var(--radius-md);
+  background: var(--color-accent);
+  color: var(--color-accent-contrast);
+  cursor: pointer;
+}
+
+.enviar:hover:not(:disabled) {
+  background: var(--color-accent-strong);
+}
+
+.enviar:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+.pie {
+  margin: 0;
+  padding: 0 var(--space-3) var(--space-2);
+  font-size: 0.6875rem;
+  color: var(--color-ink-faint);
+  text-align: center;
+}
+
+.soloLector {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* En telefono el chat ocupa toda la pantalla y ya no tiene sentido ampliarlo. */
+@media (max-width: 640px) {
+  .panel,
+  .amplio {
+    inset: 0;
+    width: 100%;
+    height: 100dvh;
+    border: none;
+    border-radius: 0;
+  }
+
+  .accionAmpliar {
+    display: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .lanzador {
+    transition: none;
+  }
+
+  .lanzador:hover {
+    transform: none;
+  }
+
+  .puntos span {
+    animation: none;
+    opacity: 0.6;
+  }
+}

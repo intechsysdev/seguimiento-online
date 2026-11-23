@@ -314,3 +314,36 @@ export function IconCamera(props: IconProps) {
     </svg>
   );
 }
+
+export function IconChat(props: IconProps) {
+  return (
+    <svg {...base} {...props}>
+      <path d="M4 5h16a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1h-8l-5 4v-4H4a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1Z" />
+      <path d="M8 10h8M8 13h5" />
+    </svg>
+  );
+}
+
+export function IconSend(props: IconProps) {
+  return (
+    <svg {...base} {...props}>
+      <path d="M21 3 10 14M21 3l-7 18-4-7-7-4Z" />
+    </svg>
+  );
+}
+
+export function IconStop(props: IconProps) {
+  return (
+    <svg {...base} {...props}>
+      <rect x="6" y="6" width="12" height="12" rx="2" />
+    </svg>
+  );
+}
+
+export function IconExpand(props: IconProps) {
+  return (
+    <svg {...base} {...props}>
+      <path d="M14 4h6v6M10 20H4v-6M20 4l-7 7M4 20l7-7" />
+    </svg>
+  );
+}
