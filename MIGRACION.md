@@ -52,7 +52,7 @@ expondría — es una consecuencia conocida de que el SPA llame los API directo.
 | Rutas | Migrado | Ruta planificada cruzada con lo visitado + traza GPS |
 | Visitas: Consolidadas | Migrado | |
 | Visitas: Efectuadas y Detalladas | Migrado | Comparten `VisitasDetalleBase` |
-| Bonificados | Prototipo con mock data | Falta conectarlo a `BonificadosController` |
+| Bonificados | Conectado (sin probar contra la base) | Campañas y reglas contra `api/v1/Bonificados` de Migracion.Api; rutas bajo el módulo Mercadeo |
 | Exhibiciones | **Deprecado** | No se migra |
 
 ## Pendientes

@@ -1,80 +1,134 @@
-import { useState, type FormEvent } from "react";
+import { useEffect, useState, type FormEvent } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { PageHeader } from "../components/layout/PageHeader";
+import { Alert } from "../components/ui/Alert";
 import { Button } from "../components/ui/Button";
 import { Field } from "../components/ui/Field";
-import { Switch } from "../components/ui/Switch";
+import { Spinner } from "../components/ui/Spinner";
 import inputStyles from "../components/ui/inputs.module.css";
-import { useBonificados } from "../store/BonificadosContext";
+import { useApi } from "../hooks/useApi";
+import { bonificadosService } from "../services/eva/bonificadosService";
+import { useAuth } from "../store/AuthContext";
+import { soloFecha, type EstadoCampana } from "../types/bonificados";
+import { hoyISO } from "../utils/dates";
 import styles from "./CampanaFormPage.module.css";
+
+const ESTADOS: { valor: EstadoCampana; etiqueta: string }[] = [
+  { valor: "B", etiqueta: "Borrador: se puede preparar sin que la app la vea" },
+  { valor: "A", etiqueta: "Activa: la app la evalúa durante su vigencia" },
+  { valor: "I", etiqueta: "Inactiva: suspendida" },
+];
+
+function dentroDeUnMes() {
+  const fecha = new Date();
+  fecha.setMonth(fecha.getMonth() + 1);
+  fecha.setDate(fecha.getDate() - 1);
+  return `${fecha.getFullYear()}-${String(fecha.getMonth() + 1).padStart(2, "0")}-${String(fecha.getDate()).padStart(2, "0")}`;
+}
 
 export function CampanaFormPage() {
   const { id } = useParams();
   const isEdit = Boolean(id);
   const navigate = useNavigate();
-  const { getCampana, addCampana, updateCampana } = useBonificados();
-  const existing = isEdit ? getCampana(id!) : undefined;
+  const { session, tenant } = useAuth();
+  const cmpy = session?.tenantActual ?? "";
 
-  const [nombre, setNombre] = useState(existing?.nombre ?? "");
-  const [descripcion, setDescripcion] = useState(existing?.descripcion ?? "");
-  const [fechaInicio, setFechaInicio] = useState(existing?.fechaInicio ?? new Date().toISOString().slice(0, 10));
-  const [fechaFin, setFechaFin] = useState(
-    existing?.fechaFin ?? new Date(Date.now() + 30 * 86400000).toISOString().slice(0, 10),
+  const existente = useApi(
+    () =>
+      isEdit && tenant && cmpy
+        ? bonificadosService.campana(tenant, cmpy, id!)
+        : Promise.resolve(undefined),
+    [tenant?.IDTenant, cmpy, id],
   );
-  const [activa, setActiva] = useState(existing?.activa ?? true);
-  const [error, setError] = useState("");
 
-  if (isEdit && !existing) {
-    return <p>Campaña no encontrada.</p>;
+  const [nombre, setNombre] = useState("");
+  const [fechaInicio, setFechaInicio] = useState(hoyISO());
+  const [fechaFin, setFechaFin] = useState(dentroDeUnMes());
+  const [estado, setEstado] = useState<EstadoCampana>("B");
+  const [error, setError] = useState("");
+  const [guardando, setGuardando] = useState(false);
+
+  useEffect(() => {
+    const c = existente.datos;
+    if (!c) return;
+    setNombre(c.nombre);
+    setFechaInicio(soloFecha(c.fechaInicio));
+    setFechaFin(soloFecha(c.fechaFin));
+    setEstado(c.estado);
+  }, [existente.datos]);
+
+  if (isEdit && existente.cargando) return <Spinner />;
+  if (isEdit && (existente.error || !existente.datos)) {
+    return (
+      <Alert tone="critical">
+        No se pudo cargar la campaña: {existente.error ?? "no existe"}
+      </Alert>
+    );
   }
 
-  function handleSubmit(e: FormEvent) {
+  async function handleSubmit(e: FormEvent) {
     e.preventDefault();
+    if (!tenant) return;
     if (!nombre.trim()) {
       setError("El nombre de la campaña es obligatorio.");
       return;
     }
     if (fechaFin < fechaInicio) {
-      setError("La fecha de fin debe ser posterior a la fecha de inicio.");
+      setError(
+        "La fecha de fin debe ser igual o posterior a la fecha de inicio.",
+      );
       return;
     }
 
-    if (existing) {
-      updateCampana({ ...existing, nombre, descripcion, fechaInicio, fechaFin, activa });
-      navigate("/bonificados");
-    } else {
-      const nueva = addCampana({ nombre, descripcion, fechaInicio, fechaFin, activa });
-      navigate(`/bonificados/campanas/${nueva.id}`);
+    setError("");
+    setGuardando(true);
+    const datos = {
+      cmpy,
+      codigo: id,
+      nombre: nombre.trim(),
+      fechaInicio,
+      fechaFin,
+      estado,
+      usuario: session?.username ?? "",
+    };
+    try {
+      if (isEdit) {
+        await bonificadosService.actualizarCampana(tenant, datos);
+        navigate(`/bonificados/campanas/${encodeURIComponent(id!)}`);
+      } else {
+        const nueva = await bonificadosService.crearCampana(tenant, datos);
+        navigate(`/bonificados/campanas/${encodeURIComponent(nueva.codigo)}`);
+      }
+    } catch (err) {
+      setError(
+        err instanceof Error ? err.message : "No se pudo guardar la campaña.",
+      );
+      setGuardando(false);
     }
   }
 
   return (
     <>
       <PageHeader
-        eyebrow="Bonificados"
+        eyebrow={isEdit ? `Bonificados · ${id}` : "Bonificados"}
         title={isEdit ? "Editar campaña" : "Nueva campaña"}
         backTo="/bonificados"
         backLabel="Campañas"
       />
 
       <form className={styles.card} onSubmit={handleSubmit}>
-        <Field label="Nombre de la campaña" htmlFor="nombre">
+        <Field
+          label="Nombre de la campaña"
+          htmlFor="nombre"
+          hint="El código se asigna solo al guardar."
+        >
           <input
             id="nombre"
             className={inputStyles.input}
             value={nombre}
+            maxLength={150}
             onChange={(e) => setNombre(e.target.value)}
             placeholder="Ej: Campaña Tintes Abril 2026"
-          />
-        </Field>
-
-        <Field label="Descripción" optional htmlFor="descripcion">
-          <textarea
-            id="descripcion"
-            className={inputStyles.textarea}
-            value={descripcion}
-            onChange={(e) => setDescripcion(e.target.value)}
-            placeholder="Objetivo de la campaña, línea de negocio, etc."
           />
         </Field>
 
@@ -88,7 +142,11 @@ export function CampanaFormPage() {
               onChange={(e) => setFechaInicio(e.target.value)}
             />
           </Field>
-          <Field label="Fecha de fin" htmlFor="fechaFin">
+          <Field
+            label="Fecha de fin"
+            htmlFor="fechaFin"
+            hint="Incluye el día completo."
+          >
             <input
               id="fechaFin"
               type="date"
@@ -99,22 +157,36 @@ export function CampanaFormPage() {
           </Field>
         </div>
 
-        <div className={styles.switchRow}>
-          <Switch
-            checked={activa}
-            onChange={setActiva}
-            label="Campaña activa"
-            hint="Solo las campañas activas y vigentes se evalúan en la app móvil."
-          />
-        </div>
+        <Field label="Estado" htmlFor="estado">
+          <select
+            id="estado"
+            className={inputStyles.select}
+            value={estado}
+            onChange={(e) => setEstado(e.target.value as EstadoCampana)}
+          >
+            {ESTADOS.map((opcion) => (
+              <option key={opcion.valor} value={opcion.valor}>
+                {opcion.etiqueta}
+              </option>
+            ))}
+          </select>
+        </Field>
 
         {error && <span className={styles.error}>{error}</span>}
 
         <div className={styles.actions}>
-          <Button type="submit" variant="primary">
-            {isEdit ? "Guardar cambios" : "Crear campaña"}
+          <Button type="submit" variant="primary" disabled={guardando}>
+            {guardando
+              ? "Guardando…"
+              : isEdit
+                ? "Guardar cambios"
+                : "Crear campaña"}
           </Button>
-          <Button type="button" variant="ghost" onClick={() => navigate("/bonificados")}>
+          <Button
+            type="button"
+            variant="ghost"
+            onClick={() => navigate("/bonificados")}
+          >
             Cancelar
           </Button>
         </div>

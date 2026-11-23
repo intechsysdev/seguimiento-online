@@ -1,75 +1,140 @@
-import type { Beneficio, Nivel, TipoAgrupacion } from "../types/bonificados";
+import type { Catalogos } from "../types/bonificados";
+import type { BeneficioForm, ReglaForm } from "./ReglaFormPage";
 import styles from "./ReglaFormPage.module.css";
 
 interface ReglaPreviewProps {
-  nombreRegla: string;
-  tipoAgrupacion: TipoAgrupacion;
-  agrupacionTexto: string;
-  canales: string[];
-  regiones: string[];
-  territorios: string[];
-  tiposCliente: string[];
-  usaEscalonamiento: boolean;
-  cantidadMinima?: number;
-  montoMinimo?: number;
-  beneficiosSimples: Beneficio[];
-  niveles: Nivel[];
-  precioMinimoBonificado?: number;
-  stockAsignado?: number;
-  stockConsumido: number;
-  limiteMensualActivo: boolean;
-  limiteMensualCantidad?: number;
+  form: ReglaForm;
+  catalogos: Catalogos;
+  productos: Map<string, string>;
 }
 
-function describeBeneficio(b: Beneficio) {
-  if (!b.productoNombre) return null;
-  const base = `${b.cantidad}× ${b.productoNombre}`;
-  return b.multiOpcion ? `${base} (a elección del vendedor)` : base;
+const numero = new Intl.NumberFormat("es-CO", { maximumFractionDigits: 2 });
+
+function nombres(
+  codigos: string[],
+  catalogo: { codigo: string; nombre: string }[],
+) {
+  const mapa = new Map(catalogo.map((c) => [c.codigo, c.nombre]));
+  return codigos.map((c) => mapa.get(c) ?? c);
 }
 
-export function ReglaPreview(p: ReglaPreviewProps) {
-  const alcance = [...p.canales, ...p.regiones, ...p.territorios, ...p.tiposCliente];
+/** Resumen en lenguaje natural de lo que verá el vendedor. */
+export function ReglaPreview({
+  form,
+  catalogos,
+  productos,
+}: ReglaPreviewProps) {
+  const producto = (id: string) => productos.get(id) ?? (id || "—");
+  const medida = (valor: string) =>
+    form.medida === "MONTO"
+      ? `$${numero.format(Number(valor) || 0)}`
+      : `${numero.format(Number(valor) || 0)} uds`;
 
-  const disponible =
-    p.stockAsignado !== undefined ? Math.max(0, p.stockAsignado - p.stockConsumido) : undefined;
+  const alcance = [
+    ...nombres(form.canales, catalogos.canales),
+    ...nombres(form.regiones, catalogos.regiones),
+    ...nombres(form.territorios, catalogos.territorios),
+  ];
+
+  const agrupacion = (() => {
+    const v = form.agrupacionValores;
+    switch (form.agrupacion) {
+      case "PRODUCTO":
+        return v.length > 3
+          ? `${v.length} productos`
+          : v.map(producto).join(", ");
+      case "LINEA":
+        return nombres(v, catalogos.lineas).join(", ");
+      case "SUBLINEA":
+        return nombres(
+          v.map((x) => x.split("|")[1] ?? x),
+          catalogos.sublineas,
+        ).join(", ");
+      case "GRUPO_MIXTO":
+        return nombres(v, catalogos.grupos).join(", ");
+    }
+  })();
+
+  function beneficio(b: BeneficioForm) {
+    const cantidad = numero.format(Number(b.cantidad) || 0);
+    switch (b.tipo) {
+      case "SPECIFIC_PRODUCT":
+        return `${cantidad}× ${producto(b.productoId)}`;
+      case "SAME_PRODUCT":
+        return `${cantidad}× del mismo producto comprado`;
+      case "LOWEST_VALUE":
+        return `${cantidad}× el de menor valor de ${nombres([b.grupo], catalogos.grupos)[0] || "—"}`;
+      case "MULTIPLE_OPTION":
+        return `${cantidad}× a elegir entre ${b.opciones.length} productos`;
+    }
+  }
+
+  const minimo = [
+    form.cantidadMinima
+      ? `${numero.format(Number(form.cantidadMinima))} uds`
+      : "",
+    form.montoMinimo ? `$${numero.format(Number(form.montoMinimo))}` : "",
+  ]
+    .filter(Boolean)
+    .join(" y ");
+
+  const totalCupo = form.stock.reduce(
+    (t, s) => t + (Number(s.asignado) || 0),
+    0,
+  );
+  const totalConsumido = form.stock.reduce((t, s) => t + s.consumido, 0);
 
   return (
     <aside className={styles.preview}>
-      <span className={styles.previewEyebrow}>Así se leerá en la app móvil</span>
-      <p className={styles.previewName}>“{p.nombreRegla || "Nueva regla sin nombre"}”</p>
-
-      <p className={styles.previewText}>
-        Aplica a clientes {alcance.length > 0 ? <strong>{alcance.join(", ")}</strong> : "de cualquier segmento"} que
-        compren por <strong>{p.agrupacionTexto || "definir"}</strong>.
+      <span className={styles.previewEyebrow}>
+        Así se leerá en la app móvil
+      </span>
+      <p className={styles.previewName}>
+        “{form.nombre || "Nueva regla sin nombre"}”
       </p>
 
-      {p.usaEscalonamiento ? (
+      <p className={styles.previewText}>
+        Aplica a clientes{" "}
+        {alcance.length > 0 ? (
+          <strong>{alcance.join(", ")}</strong>
+        ) : (
+          "de cualquier segmento"
+        )}{" "}
+        que compren <strong>{agrupacion || "(sin productos elegidos)"}</strong>.
+      </p>
+
+      {form.usaEscalonamiento ? (
         <p className={styles.previewText}>
-          Bonificación <strong>escalonada</strong> en {p.niveles.length || 0} nivel(es):
+          Bonificación <strong>escalonada</strong> en {form.niveles.length}{" "}
+          nivel(es):
           <br />
-          {p.niveles.length === 0 && "aún sin niveles configurados."}
-          {p.niveles.map((nivel, idx) => {
-            const beneficio = describeBeneficio(nivel.beneficios[0]);
-            return (
-              <span key={nivel.id ?? idx}>
-                Nivel {idx + 1}: desde <strong>{nivel.cantidadMinima ?? "—"}</strong> uds → {beneficio ?? "sin beneficio definido"}
-                <br />
-              </span>
-            );
-          })}
+          {form.niveles.length === 0 && "aún sin niveles."}
+          {form.niveles.map((nivel, idx) => (
+            <span key={nivel.clave}>
+              Nivel {idx + 1}: desde{" "}
+              <strong>{nivel.desde ? medida(nivel.desde) : "—"}</strong> →{" "}
+              {nivel.beneficios.length === 0
+                ? "sin bonificados"
+                : nivel.beneficios
+                    .map((b) =>
+                      b.igualAlTotal
+                        ? `${producto(b.productoId)} (igual al total)`
+                        : `${numero.format(Number(b.cantidad) || 0)}× ${producto(b.productoId)}`,
+                    )
+                    .join(" + ")}
+              <br />
+            </span>
+          ))}
         </p>
       ) : (
         <p className={styles.previewText}>
-          Con una compra mínima de{" "}
-          <strong>
-            {p.cantidadMinima ? `${p.cantidadMinima} uds` : p.montoMinimo ? `$${p.montoMinimo.toLocaleString()}` : "— sin definir"}
-          </strong>
-          , el vendedor recibe:
+          Con una compra mínima de <strong>{minimo || "— sin definir"}</strong>,
+          el cliente recibe:
           <br />
-          {p.beneficiosSimples.length === 0 && "aún sin beneficios configurados."}
-          {p.beneficiosSimples.map((b, idx) => (
-            <span key={b.id ?? idx}>
-              {describeBeneficio(b) ?? "sin beneficio definido"}
+          {form.beneficios.length === 0 && "aún sin beneficios."}
+          {form.beneficios.map((b) => (
+            <span key={b.clave}>
+              {beneficio(b)}
               <br />
             </span>
           ))}
@@ -78,24 +143,36 @@ export function ReglaPreview(p: ReglaPreviewProps) {
 
       <div className={styles.previewDivider} />
 
-      {p.precioMinimoBonificado !== undefined && (
+      {form.precioMinimo ? (
         <div className={styles.previewStat}>
           <span>Precio mínimo del bonificado</span>
-          <span>${p.precioMinimoBonificado.toLocaleString()}</span>
+          <span>${numero.format(Number(form.precioMinimo))}</span>
         </div>
-      )}
-      {p.stockAsignado !== undefined && (
+      ) : null}
+      {form.stockLimitado ? (
         <div className={styles.previewStat}>
           <span>Stock disponible</span>
           <span>
-            {disponible}/{p.stockAsignado}
+            {Math.max(0, totalCupo - totalConsumido)}/{totalCupo}
           </span>
         </div>
-      )}
+      ) : null}
       <div className={styles.previewStat}>
         <span>Límite por cliente</span>
-        <span>{p.limiteMensualActivo ? `${p.limiteMensualCantidad ?? 1}× al mes` : "Sin límite"}</span>
+        <span>
+          {form.frecuencia === "N"
+            ? "Sin límite"
+            : form.frecuencia === "M"
+              ? `${form.maximoPorCliente || 1}× al mes`
+              : `${form.maximoPorCliente || 1}× en total`}
+        </span>
       </div>
+      {!form.activa ? (
+        <div className={styles.previewStat}>
+          <span>Estado</span>
+          <span>Inactiva</span>
+        </div>
+      ) : null}
     </aside>
   );
 }

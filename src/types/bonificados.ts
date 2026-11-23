@@ -1,100 +1,148 @@
-export type TipoAgrupacion = "PRODUCTO" | "LINEA" | "SUBLINEA" | "GRUPO_MIXTO";
+/**
+ * Contrato de api/v1/Bonificados (Migracion.Api, BonificadosDtos.cs).
+ * Las fechas llegan como "2026-04-01T00:00:00"; en el portal se manejan como
+ * yyyy-MM-dd (ver `soloFecha`).
+ */
+
+/** A = activa, I = inactiva, B = borrador (la app no la ve). */
+export type EstadoCampana = "A" | "I" | "B";
 
 export interface Campana {
-  id: string;
-  nombre: string;
-  descripcion?: string;
-  fechaInicio: string;
-  fechaFin: string;
-  activa: boolean;
-  fechaCreacion: string;
-  usuarioCreacion: string;
-}
-
-export interface Producto {
-  id: string;
+  cmpy: string;
   codigo: string;
   nombre: string;
-  lineaId: string;
-  sublineaId: string;
+  fechaInicio: string;
+  fechaFin: string;
+  estado: EstadoCampana;
+  origen?: string | null;
+  totalReglas: number;
+  usuarioCreacion?: string | null;
+  fechaCreacion?: string | null;
+  usuarioModificacion?: string | null;
+  fechaModificacion?: string | null;
 }
 
-export interface Linea {
-  id: string;
+export interface CampanaGuardar {
+  cmpy: string;
+  codigo?: string;
   nombre: string;
+  fechaInicio: string;
+  fechaFin: string;
+  estado: EstadoCampana;
+  usuario: string;
 }
 
-export interface Sublinea {
-  id: string;
-  nombre: string;
-  lineaId: string;
-}
+export type TipoAgrupacion = "PRODUCTO" | "LINEA" | "SUBLINEA" | "GRUPO_MIXTO";
+export type Medida = "UNIDADES" | "MONTO";
+export type TipoBeneficio =
+  "SPECIFIC_PRODUCT" | "SAME_PRODUCT" | "LOWEST_VALUE" | "MULTIPLE_OPTION";
+/** N = sin límite, M = por mes, U = una sola vez por cliente. */
+export type Frecuencia = "N" | "M" | "U";
 
-export interface GrupoMixto {
-  id: string;
-  nombre: string;
-  descripcion?: string;
-  cantidadProductos: number;
+export interface ProductoCantidad {
+  productoId: string;
+  productoNombre?: string | null;
+  cantidad: number;
+  /** Solo en niveles: bonifica tantas unidades como se compraron. */
+  igualAlTotal?: boolean;
 }
 
 export interface Beneficio {
-  id: string;
-  productoCodigo: string;
-  productoNombre: string;
+  tipo: TipoBeneficio;
   cantidad: number;
-  multiOpcion: boolean;
-  opciones: string[];
+  productoId?: string | null;
+  productoNombre?: string | null;
+  grupo?: string | null;
+  opciones: ProductoCantidad[];
 }
 
 export interface Nivel {
-  id: string;
   nivel: number;
-  cantidadMinima?: number;
-  montoMinimo?: number;
-  beneficios: Beneficio[];
+  desde: number;
+  /** Lo calcula el API a partir del nivel siguiente. */
+  hasta?: number | null;
+  beneficios: ProductoCantidad[];
+}
+
+export interface StockProducto {
+  productoId: string;
+  productoNombre?: string | null;
+  asignado: number;
+  /** Lo lleva el motor al aplicar bonificados; el portal no lo cambia. */
+  consumido: number;
 }
 
 export interface Regla {
-  id: string;
-  campanaId: string;
-  nombreRegla: string;
-  descripcion?: string;
+  cmpy: string;
+  codigo?: string;
+  campana: string;
+  nombre: string;
   activa: boolean;
+  prioridad: number;
+  acumulable: boolean;
+  fechaInicio?: string | null;
+  fechaFin?: string | null;
+  /** C-01, C-02 o C-03; lo deduce el API. */
+  tipo?: string | null;
 
   canales: string[];
   regiones: string[];
   territorios: string[];
-  tiposCliente: string[];
 
-  tipoAgrupacion: TipoAgrupacion;
-  productosSeleccionados: Producto[];
-  lineasSeleccionadas: Linea[];
-  sublineasSeleccionadas: Sublinea[];
-  grupoSeleccionado?: GrupoMixto;
+  agrupacion: TipoAgrupacion;
+  /** rpr_id, rln_linea, "linea|subl" o el código del grupo. */
+  agrupacionValores: string[];
 
   usaEscalonamiento: boolean;
-  cantidadMinima?: number;
-  montoMinimo?: number;
-  beneficiosSimples: Beneficio[];
+  medida: Medida;
+  cantidadMinima?: number | null;
+  montoMinimo?: number | null;
+  beneficios: Beneficio[];
   niveles: Nivel[];
 
-  precioMinimoBonificado?: number;
-  stockAsignado?: number;
-  stockConsumido: number;
-  limiteMensualActivo: boolean;
-  limiteMensualCantidad?: number;
+  precioMinimoBonificado?: number | null;
+  frecuencia: Frecuencia;
+  maximoPorCliente?: number | null;
+  stockLimitado: boolean;
+  stock: StockProducto[];
 
-  fechaCreacion: string;
-  usuarioCreacion: string;
+  usuarioCreacion?: string | null;
+  fechaCreacion?: string | null;
+  usuarioModificacion?: string | null;
+  fechaModificacion?: string | null;
+  usuario?: string;
+}
+
+export interface OpcionCatalogo {
+  codigo: string;
+  nombre: string;
+}
+
+export interface SublineaCatalogo extends OpcionCatalogo {
+  linea: string;
+}
+
+export interface ProductoCatalogo extends OpcionCatalogo {
+  linea?: string | null;
+  sublinea?: string | null;
+}
+
+export interface GrupoCatalogo extends OpcionCatalogo {
+  activo: boolean;
+  elementos: number;
 }
 
 export interface Catalogos {
-  canales: string[];
-  regiones: string[];
-  territorios: string[];
-  tiposCliente: string[];
-  productos: Producto[];
-  lineas: Linea[];
-  sublineas: Sublinea[];
-  grupos: GrupoMixto[];
+  canales: OpcionCatalogo[];
+  regiones: OpcionCatalogo[];
+  territorios: OpcionCatalogo[];
+  lineas: OpcionCatalogo[];
+  sublineas: SublineaCatalogo[];
+  productos: ProductoCatalogo[];
+  grupos: GrupoCatalogo[];
+}
+
+/** "2026-04-01T00:00:00" → "2026-04-01". */
+export function soloFecha(valor?: string | null) {
+  return valor ? valor.slice(0, 10) : "";
 }
