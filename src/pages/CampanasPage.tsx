@@ -13,6 +13,7 @@ import {
   IconCopy,
   IconEdit,
   IconGift,
+  IconLayers,
   IconPlus,
   IconTrash,
 } from "../components/icons";
@@ -96,13 +97,22 @@ export function CampanasPage() {
         title="Campañas"
         description="Cada campaña agrupa una o varias reglas de bonificación vigentes durante un período."
         actions={
-          <Button
-            variant="primary"
-            onClick={() => navigate("/bonificados/campanas/nueva")}
-          >
-            <IconPlus width={16} height={16} />
-            Nueva campaña
-          </Button>
+          <>
+            <Button
+              variant="secondary"
+              onClick={() => navigate("/bonificados/grupos")}
+            >
+              <IconLayers width={16} height={16} />
+              Grupos mixtos
+            </Button>
+            <Button
+              variant="primary"
+              onClick={() => navigate("/bonificados/campanas/nueva")}
+            >
+              <IconPlus width={16} height={16} />
+              Nueva campaña
+            </Button>
+          </>
         }
       />
 

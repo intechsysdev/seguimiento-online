@@ -40,6 +40,7 @@ import { EntregasPage } from "./pages/pop/EntregasPage";
 import { MarcasPage } from "./pages/pop/MarcasPage";
 import { MaterialPage } from "./pages/pop/MaterialPage";
 import { CampanasPage } from "./pages/CampanasPage";
+import { GruposPage } from "./pages/GruposPage";
 import { CampanaFormPage } from "./pages/CampanaFormPage";
 import { ReglasPage } from "./pages/ReglasPage";
 import { ReglaFormPage } from "./pages/ReglaFormPage";
@@ -114,6 +115,7 @@ function App() {
         <Route element={<ProtectedRoute modulo="Mercadeo" />}>
           <Route element={<AppShell />}>
             <Route path="/bonificados" element={<CampanasPage />} />
+            <Route path="/bonificados/grupos" element={<GruposPage />} />
             <Route
               path="/bonificados/campanas/nueva"
               element={<CampanaFormPage />}

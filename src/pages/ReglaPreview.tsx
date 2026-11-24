@@ -129,7 +129,15 @@ export function ReglaPreview({
       ) : (
         <p className={styles.previewText}>
           Con una compra mínima de <strong>{minimo || "— sin definir"}</strong>,
-          el cliente recibe:
+          el cliente recibe
+          {form.multiplo && form.cantidadMinima ? (
+            <>
+              {" "}
+              (y otra vez por cada <strong>{form.multiplo}</strong> unidades
+              adicionales)
+            </>
+          ) : null}
+          :
           <br />
           {form.beneficios.length === 0 && "aún sin beneficios."}
           {form.beneficios.map((b) => (

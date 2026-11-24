@@ -97,6 +97,8 @@ export interface Regla {
   medida: Medida;
   cantidadMinima?: number | null;
   montoMinimo?: number | null;
+  /** El beneficio se repite por cada N unidades adicionales (Deco 3+1: mínimo 3, múltiplo 3). */
+  multiplo?: number | null;
   beneficios: Beneficio[];
   niveles: Nivel[];
 
@@ -140,6 +142,27 @@ export interface Catalogos {
   sublineas: SublineaCatalogo[];
   productos: ProductoCatalogo[];
   grupos: GrupoCatalogo[];
+}
+
+export type NivelElemento = "LINEA" | "SUBLINEA" | "REFERENCIA";
+
+export interface GrupoElemento {
+  nivel: NivelElemento;
+  /** rln_linea, "linea|subl" o rpr_id. */
+  valor: string;
+  nombre?: string | null;
+}
+
+/** Grupo mixto (mob_rbongrupo + mob_rbongrupodet). */
+export interface Grupo {
+  cmpy: string;
+  codigo?: string;
+  nombre: string;
+  activo: boolean;
+  elementos: GrupoElemento[];
+  /** Reglas que lo usan; mientras haya, no se puede borrar. */
+  reglas: string[];
+  usuario?: string;
 }
 
 /** "2026-04-01T00:00:00" → "2026-04-01". */

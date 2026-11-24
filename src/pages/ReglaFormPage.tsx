@@ -78,6 +78,7 @@ export interface ReglaForm {
   medida: Medida;
   cantidadMinima: string;
   montoMinimo: string;
+  multiplo: string;
   beneficios: BeneficioForm[];
   niveles: NivelForm[];
   precioMinimo: string;
@@ -128,6 +129,7 @@ function desdeRegla(r?: Regla): ReglaForm {
     medida: r?.medida ?? "UNIDADES",
     cantidadMinima: texto(r?.cantidadMinima),
     montoMinimo: texto(r?.montoMinimo),
+    multiplo: texto(r?.multiplo),
     beneficios: r?.beneficios.length
       ? r.beneficios.map((b) => ({
           clave: nuevaClave(),
@@ -182,6 +184,8 @@ function aRegla(
     medida: f.medida,
     cantidadMinima: f.usaEscalonamiento ? null : num(f.cantidadMinima),
     montoMinimo: f.usaEscalonamiento ? null : num(f.montoMinimo),
+    multiplo:
+      f.usaEscalonamiento || !f.cantidadMinima.trim() ? null : num(f.multiplo),
     beneficios: f.usaEscalonamiento
       ? []
       : f.beneficios.map((b) => ({
@@ -706,7 +710,7 @@ function FormularioRegla({
 
             {!form.usaEscalonamiento && (
               <>
-                <div className={styles.row}>
+                <div className={styles.row3}>
                   <Field
                     label="Cantidad mínima"
                     optional
@@ -739,6 +743,23 @@ function FormularioRegla({
                         onChange={(e) => set("montoMinimo", e.target.value)}
                       />
                     </div>
+                  </Field>
+                  <Field
+                    label="Repetir por cada"
+                    optional
+                    htmlFor="multiplo"
+                    hint="Unidades adicionales que vuelven a dar el beneficio (3+1: mínimo 3, cada 3)."
+                  >
+                    <input
+                      id="multiplo"
+                      type="number"
+                      min={0}
+                      step="any"
+                      className={inputStyles.input}
+                      value={form.multiplo}
+                      disabled={!form.cantidadMinima}
+                      onChange={(e) => set("multiplo", e.target.value)}
+                    />
                   </Field>
                 </div>
 

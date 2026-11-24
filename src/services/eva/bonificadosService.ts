@@ -5,6 +5,7 @@ import type {
   Campana,
   CampanaGuardar,
   Catalogos,
+  Grupo,
   Regla,
 } from "../../types/bonificados";
 import type { TenantDto } from "../../types/seguridad";
@@ -105,6 +106,28 @@ export const bonificadosService = {
 
   actualizarRegla: (tenant: TenantDto, datos: Regla) =>
     conMensaje(tenantHttp.put<Regla>(tenant, `${base}/Regla`, datos)),
+
+  grupos: (tenant: TenantDto, cmpy: string) =>
+    conMensaje(tenantHttp.get<Grupo[]>(tenant, `${base}/Grupos/${seg(cmpy)}`)),
+
+  crearGrupo: (tenant: TenantDto, datos: Grupo) =>
+    conMensaje(tenantHttp.post<Grupo>(tenant, `${base}/Grupo`, datos)),
+
+  actualizarGrupo: (tenant: TenantDto, datos: Grupo) =>
+    conMensaje(tenantHttp.put<Grupo>(tenant, `${base}/Grupo`, datos)),
+
+  eliminarGrupo: (
+    tenant: TenantDto,
+    cmpy: string,
+    codigo: string,
+    usuario: string,
+  ) =>
+    conMensaje(
+      tenantHttp.delete<boolean>(
+        tenant,
+        `${base}/Grupo/${seg(cmpy)}/${seg(codigo)}?usuario=${seg(usuario)}`,
+      ),
+    ),
 
   eliminarRegla: (
     tenant: TenantDto,
